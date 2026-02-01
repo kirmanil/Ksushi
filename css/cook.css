@@ -1,0 +1,633 @@
+/* СТИЛИ ДЛЯ СТРАНИЦЫ ПОВАРОВ/КУРЬЕРОВ */
+
+/* Основные стили */
+.cook-header {
+    background: rgba(0, 0, 0, 0.95);
+    border-bottom: 3px solid #ff0000;
+    padding: 15px 0;
+    margin-bottom: 30px;
+}
+
+.cook-header .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cook-logo {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.cook-logo h1 {
+    color: #ff0000;
+    font-size: 24px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.employee-info {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.employee-role {
+    background: rgba(255, 0, 0, 0.1);
+    color: #ff0000;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 14px;
+    border: 1px solid #333;
+}
+
+.btn-logout-cook {
+    background: rgba(255, 0, 0, 0.1);
+    color: white;
+    border: 1px solid #333;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s;
+}
+
+.btn-logout-cook:hover {
+    background: rgba(255, 0, 0, 0.2);
+    border-color: #ff0000;
+}
+
+/* Табы */
+.cook-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #333;
+    padding-bottom: 10px;
+}
+
+.cook-tab {
+    background: rgba(51, 51, 51, 0.5);
+    border: 2px solid #333;
+    color: #ccc;
+    padding: 12px 25px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.cook-tab.active {
+    background: rgba(255, 0, 0, 0.1);
+    border-color: #ff0000;
+    color: white;
+    border-bottom-color: transparent;
+}
+
+.cook-tab:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Содержимое табов */
+.cook-tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.cook-tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Карточки заказов */
+.orders-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.order-card {
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #333;
+    border-radius: 15px;
+    padding: 20px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+}
+
+.order-card:hover {
+    border-color: #ff0000;
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(255, 0, 0, 0.2);
+}
+
+.order-card.priority {
+    border-color: #ff9900;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { border-color: #ff9900; }
+    50% { border-color: #ff3300; }
+    100% { border-color: #ff9900; }
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #333;
+}
+
+.order-number {
+    color: #ff0000;
+    font-weight: 900;
+    font-size: 18px;
+}
+
+.order-time {
+    color: #999;
+    font-size: 14px;
+}
+
+.order-status {
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-new {
+    background: rgba(0, 150, 255, 0.1);
+    color: #0096ff;
+}
+
+.status-cooking {
+    background: rgba(255, 165, 0, 0.1);
+    color: #ffa500;
+}
+
+.status-ready {
+    background: rgba(0, 255, 0, 0.1);
+    color: #00ff00;
+}
+
+.status-delivering {
+    background: rgba(255, 0, 255, 0.1);
+    color: #ff00ff;
+}
+
+.status-delivered {
+    background: rgba(0, 255, 0, 0.1);
+    color: #00ff00;
+}
+
+.status-cancelled {
+    background: rgba(255, 0, 0, 0.1);
+    color: #ff0000;
+}
+
+.order-items {
+    margin-bottom: 20px;
+}
+
+.order-items h4 {
+    color: white;
+    margin-bottom: 10px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.order-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.order-item:last-child {
+    border-bottom: none;
+}
+
+.item-name {
+    color: #ccc;
+    flex: 1;
+}
+
+.item-quantity {
+    color: #999;
+    margin: 0 15px;
+    min-width: 30px;
+    text-align: center;
+}
+
+.item-price {
+    color: white;
+    font-weight: 600;
+    min-width: 80px;
+    text-align: right;
+}
+
+.order-details {
+    background: rgba(51, 51, 51, 0.5);
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.order-address {
+    margin-bottom: 10px;
+}
+
+.order-address h5 {
+    color: white;
+    margin-bottom: 5px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.order-address p {
+    color: #ccc;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.order-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+    border-top: 1px solid #333;
+}
+
+.total-amount {
+    color: #ff0000;
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.order-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn-status {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.btn-cook {
+    background: rgba(255, 165, 0, 0.1);
+    color: #ffa500;
+    border: 1px solid #ffa500;
+}
+
+.btn-cook:hover {
+    background: rgba(255, 165, 0, 0.2);
+    transform: translateY(-2px);
+}
+
+.btn-ready {
+    background: rgba(0, 255, 0, 0.1);
+    color: #00ff00;
+    border: 1px solid #00ff00;
+}
+
+.btn-ready:hover {
+    background: rgba(0, 255, 0, 0.2);
+    transform: translateY(-2px);
+}
+
+.btn-deliver {
+    background: rgba(255, 0, 255, 0.1);
+    color: #ff00ff;
+    border: 1px solid #ff00ff;
+}
+
+.btn-deliver:hover {
+    background: rgba(255, 0, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.btn-cancel {
+    background: rgba(255, 0, 0, 0.1);
+    color: #ff0000;
+    border: 1px solid #ff0000;
+}
+
+.btn-cancel:hover {
+    background: rgba(255, 0, 0, 0.2);
+    transform: translateY(-2px);
+}
+
+/* Специальный раздел для курьеров */
+.delivery-info {
+    background: linear-gradient(135deg, rgba(255, 0, 255, 0.1) 0%, rgba(0, 0, 0, 0.7) 100%);
+    border: 2px solid #ff00ff;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+.delivery-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.delivery-header i {
+    font-size: 28px;
+    color: #ff00ff;
+}
+
+.delivery-header h3 {
+    color: white;
+    font-size: 22px;
+}
+
+.delivery-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.delivery-card {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #333;
+}
+
+.delivery-card h4 {
+    color: white;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.delivery-card h4 i {
+    color: #ff00ff;
+}
+
+.delivery-card p {
+    color: #ccc;
+    margin-bottom: 8px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.payment-details {
+    background: rgba(0, 255, 0, 0.1);
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #00ff00;
+    margin-top: 20px;
+}
+
+.payment-details h4 {
+    color: #00ff00;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.payment-total {
+    font-size: 28px;
+    font-weight: 900;
+    color: #00ff00;
+    text-align: center;
+    margin: 15px 0;
+}
+
+.delivery-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 25px;
+}
+
+.btn-delivered {
+    background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-delivered:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 20px rgba(0, 255, 0, 0.3);
+}
+
+.btn-problem {
+    background: rgba(255, 0, 0, 0.1);
+    color: #ff0000;
+    border: 1px solid #ff0000;
+    padding: 15px 30px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-problem:hover {
+    background: rgba(255, 0, 0, 0.2);
+}
+
+/* Статистика */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #333;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.stat-card:hover {
+    border-color: #ff0000;
+    transform: translateY(-5px);
+}
+
+.stat-number {
+    font-size: 36px;
+    font-weight: 900;
+    color: #ff0000;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.stat-label {
+    color: #ccc;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .cook-header .container {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .orders-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .cook-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .order-actions {
+        flex-wrap: wrap;
+    }
+    
+    .btn-status {
+        min-width: calc(50% - 5px);
+    }
+    
+    .delivery-actions {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .cook-tab {
+        padding: 10px 15px;
+        font-size: 14px;
+    }
+    
+    .order-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .order-actions {
+        flex-direction: column;
+    }
+    
+    .btn-status {
+        width: 100%;
+    }
+    
+    .delivery-details {
+        grid-template-columns: 1fr;
+    }
+}
+/* Стили для авторизации сотрудников */
+.cook-auth-step {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.sms-code-input {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin: 25px 0;
+}
+
+.cook-code-digit {
+    width: 60px;
+    height: 70px;
+    text-align: center;
+    font-size: 32px;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid #333;
+    border-radius: 8px;
+    color: white;
+    transition: all 0.3s;
+}
+
+.cook-code-digit:focus {
+    outline: none;
+    border-color: #ff0000;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.timer {
+    text-align: center;
+    color: #999;
+    margin-bottom: 25px;
+    font-size: 14px;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: #ff0000;
+    cursor: pointer;
+    text-decoration: underline;
+    margin-top: 15px;
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 10px;
+    transition: all 0.3s;
+    font-size: 14px;
+}
+
+.btn-link:hover:not(:disabled) {
+    color: #cc0000;
+}
+
+.btn-link:disabled {
+    color: #666;
+    cursor: not-allowed;
+    text-decoration: none;
+}

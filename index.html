@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kсуши - Доставка суши по городу</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://api-maps.yandex.ru/2.1/?b6337897-c1bc-4e10-8d2c-1f1416aa5f79&lang=ru_RU" type="text/javascript"></script>
+    <script type="module" src="js/firebase-config.js"></script>
+</button>
+    <style>
+        /* Стили для кнопки профиля */
+        .profile-link {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, rgba(255, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.8) 100%);
+            border-radius: 12px;
+            border: 2px solid #333;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 16px;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .profile-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.1), 
+                transparent);
+            transition: 0.5s;
+        }
+
+        .profile-link:hover {
+            background: linear-gradient(135deg, rgba(255, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.9) 100%);
+            border-color: #ff0000;
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(255, 0, 0, 0.3);
+        }
+
+        .profile-link:hover::before {
+            left: 100%;
+        }
+
+        .profile-link i {
+            color: #ff0000;
+            font-size: 18px;
+            transition: transform 0.3s;
+        }
+
+        .profile-link:hover i {
+            transform: rotate(10deg) scale(1.1);
+        }
+
+        .profile-link span {
+            background: linear-gradient(90deg, #fff, #ff9999);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .profile-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: linear-gradient(135deg, #ff0000, #cc0000);
+            color: white;
+            font-size: 12px;
+            font-weight: 900;
+            min-width: 20px;
+            height: 20px;
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 0 6px;
+            border: 2px solid #000;
+            box-shadow: 0 2px 8px rgba(255, 0, 0, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        /* Стили для кнопок выбора вариантов продуктов */
+        .variant-buttons-container {
+            margin: 15px 0;
+        }
+
+        .variant-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .variant-btn {
+            flex: 1;
+            min-width: 0;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #333;
+            border-radius: 10px;
+            color: #ccc;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: center;
+            white-space: nowrap;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .variant-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.1), 
+                transparent);
+            transition: 0.5s;
+        }
+
+        .variant-btn:hover {
+            background: rgba(255, 0, 0, 0.15);
+            border-color: #ff0000;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .variant-btn:hover::before {
+            left: 100%;
+        }
+
+        .variant-btn.active {
+            background: rgba(255, 0, 0, 0.25);
+            border-color: #ff0000;
+            color: #ff0000;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(255, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .variant-btn.active::after {
+            content: '✓';
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 18px;
+            height: 18px;
+            background: #ff0000;
+            color: white;
+            border-radius: 50%;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #000;
+        }
+
+        .variant-price-display {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 800;
+            color: #ff0000;
+            margin: 12px 0;
+            padding: 10px;
+            background: rgba(255, 0, 0, 0.05);
+            border-radius: 10px;
+            border: 2px solid rgba(255, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(255, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+
+        .variant-price-display:hover {
+            background: rgba(255, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgba(255, 0, 0, 0.2);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        @media (max-width: 768px) {
+            .profile-link span:not(.profile-badge) {
+                display: none;
+            }
+            
+            .profile-link {
+                padding: 10px;
+                width: 48px;
+                height: 48px;
+                justify-content: center;
+            }
+            
+            .profile-link i {
+                font-size: 20px;
+            }
+            
+            .profile-badge {
+                top: -6px;
+                right: -6px;
+                font-size: 10px;
+                min-width: 18px;
+                height: 18px;
+            }
+            
+            .variant-buttons {
+                gap: 6px;
+            }
+            
+            .variant-btn {
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+            
+            .variant-price-display {
+                font-size: 18px;
+                padding: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .variant-buttons {
+                flex-direction: column;
+                gap: 6px;
+            }
+            
+            .variant-btn {
+                width: 100%;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Фоновое изображение -->
+    <div class="background-overlay"></div>
+    
+    <!-- Шапка -->
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <img src="images/logo.png" alt="Kсуши" class="logo-img">
+                <div class="logo-text">
+                    <h1>Kсуши</h1>
+                    <p>Доставка суши по городу</p>
+                </div>
+            </div>
+            
+            <div class="header-controls">
+                <!-- Кнопка входа -->
+                <button class="btn-auth" id="open-auth">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Войти</span>
+                </button>
+                
+                <!-- Ссылка на профиль -->
+                <a href="profile.html" class="profile-link" id="profile-link" style="display: none;">
+                    <i class="fas fa-user"></i>
+                    <span id="profile-name">Профиль</span>
+                    <span class="profile-badge" id="profile-badge"></span>
+                </a>
+                
+                <div class="cart">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span class="cart-count">0</span>
+                </div>
+                <div class="phone">
+                    <i class="fas fa-phone"></i>
+                    <span>8 (923) 462-11-67</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Баннер -->
+    <section class="banner-section">
+        <div class="banner-container">
+            <!-- Баннер 1 -->
+            <div class="banner active">
+                <div class="banner-image">
+                    <img src="images/banners/banner1.jpg" alt="Скидка 20% на первый заказ">
+                </div>
+                <div class="banner-text">
+                    <h2><span class="red-text">Скидка 20%</span> на первый заказ!</h2>
+                    <p>Используй промокод: <strong class="promo-code">KSUSHI20</strong></p>
+                    <button class="btn-order-now">Заказать сейчас</button>
+                </div>
+            </div>
+            
+            <!-- Баннер 2 -->
+            <div class="banner">
+                <div class="banner-image">
+                    <img src="images/banners/banner2.jpg" alt="Бесплатная доставка">
+                </div>
+                <div class="banner-text">
+                    <h2><span class="red-text">Бесплатная доставка</span> от 1500₽</h2>
+                    <p>Быстро и горячо по всему городу</p>
+                    <button class="btn-order-now">Заказать сейчас</button>
+                </div>
+            </div>
+            
+            <!-- Баннер 3 -->
+            <div class="banner">
+                <div class="banner-image">
+                    <img src="images/banners/banner3.jpg" alt="Новая коллекция роллов">
+                </div>
+                <div class="banner-text">
+                    <h2><span class="red-text">Новая коллекция</span> роллов</h2>
+                    <p>Попробуй первым эксклюзивные рецепты!</p>
+                    <button class="btn-order-now">Заказать сейчас</button>
+                </div>
+            </div>
+            
+            <!-- Кнопки навигации -->
+            <button class="banner-btn prev-btn">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <button class="banner-btn next-btn">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            
+            <!-- Индикаторы -->
+            <div class="banner-dots">
+                <span class="dot active" data-slide="0"></span>
+                <span class="dot" data-slide="1"></span>
+                <span class="dot" data-slide="2"></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Меню -->
+    <section class="menu-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Новинки</h2>
+                <div class="new-badge-large">NEW</div>
+            </div>
+            <div class="products-grid" id="new-products">
+                <!-- Новинки будут загружены через JS -->
+            </div>
+
+            <h2 class="section-title">Роллы</h2>
+            <div class="products-grid" id="rolls">
+                <!-- Роллы будут загружены через JS -->
+            </div>
+
+            <h2 class="section-title">Суши</h2>
+            <div class="products-grid" id="sushi">
+                <!-- Суши будут загружены через JS -->
+            </div>
+
+            <h2 class="section-title">Онигири</h2>
+            <div class="products-grid" id="onigiri">
+                <!-- Онигири будут загружены через JS -->
+            </div>
+
+            <h2 class="section-title">Сеты</h2>
+            <div class="products-grid" id="sets">
+                <!-- Сеты будут загружены через JS -->
+            </div>
+
+            <h2 class="section-title">Напитки</h2>
+            <div class="products-grid" id="drinks">
+                <!-- Напитки будут загружены через JS -->
+            </div>
+
+            <h2 class="section-title">Фастфуд</h2>
+            <div class="products-grid" id="fastfood">
+                <!-- Фастфуд будет загружен через JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Корзина -->
+    <div class="cart-sidebar">
+        <div class="cart-header">
+            <h3><i class="fas fa-shopping-cart"></i> Ваш заказ</h3>
+            <button class="close-cart"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="cart-items">
+            <!-- Товары из корзины -->
+        </div>
+        <div class="cart-footer">
+            <div class="delivery-info">
+                <p><i class="fas fa-map-marker-alt"></i> Адрес доставки:</p>
+                <p id="cart-delivery-address" class="address-notice">
+                    <a href="#" id="open-auth-from-cart">Войдите для выбора адреса</a>
+                </p>
+            </div>
+            
+            <!-- Новый блок: Промокод и бонусы -->
+            <div class="promo-section">
+                <div class="promo-input-container">
+                    <input type="text" id="promo-code-input" placeholder="Введите промокод" maxlength="20">
+                    <button id="apply-promo-btn" class="btn-promo">
+                        <i class="fas fa-tag"></i>
+                    </button>
+                </div>
+                
+                <div class="active-promo-container" id="active-promo-container" style="display: none;">
+                    <div class="active-promo">
+                        <span id="active-promo-text"></span>
+                        <button id="remove-promo-btn" class="remove-promo">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bonuses-section">
+                    <div class="bonuses-toggle">
+                        <label class="switch">
+                            <input type="checkbox" id="use-bonuses-toggle">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="bonuses-label">
+                            Использовать бонусы 
+                            <span class="available-bonuses" id="available-bonuses">0</span>
+                        </span>
+                    </div>
+                    <div class="bonuses-input-container" id="bonuses-input-container" style="display: none;">
+                        <input type="number" id="bonuses-amount" min="0" max="1000" placeholder="Сколько баллов использовать">
+                        <span class="bonuses-max" id="use-max-bonuses">Макс.</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Измененный блок итогов -->
+            <div class="pricing-summary">
+                <div class="price-row">
+                    <span>Сумма заказа:</span>
+                    <span id="subtotal-price">0₽</span>
+                </div>
+                <div class="price-row discount-row" style="display: none;">
+                    <span>Скидка по промокоду:</span>
+                    <span id="promo-discount">-0₽</span>
+                </div>
+                <div class="price-row bonuses-row" style="display: none;">
+                    <span>Списано бонусов:</span>
+                    <span id="used-bonuses">-0₽</span>
+                </div>
+                <div class="price-row delivery-row">
+                    <span>Доставка:</span>
+                    <span id="delivery-price">0₽</span>
+                </div>
+                <div class="price-row total-row">
+                    <span>Итого к оплате:</span>
+                    <span class="total-price" id="final-price">0₽</span>
+                </div>
+                <div class="bonuses-earned" style="display: none;">
+                    <i class="fas fa-gift"></i>
+                    <span>Вы получите <span id="bonuses-to-earn">0</span> бонусов</span>
+                </div>
+            </div>
+            
+            <button class="btn-order btn-red" id="checkout-btn">Оформить заказ</button>
+        </div>
+    </div>
+    
+    <div class="cart-overlay"></div>
+
+    <!-- Модальное окно авторизации -->
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal auth-modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-user-circle"></i> Вход / Регистрация</h3>
+                <button class="close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-content">
+                <!-- Шаг 1: Ввод телефона -->
+                <div class="auth-step active" id="step-phone">
+                    <h4>Введите номер телефона</h4>
+                    <div class="phone-input-container">
+                        <div class="phone-prefix">+7</div>
+                        <input type="tel" id="phone-input" 
+                               placeholder="9991234567" 
+                               maxlength="10"
+                               pattern="[0-9]{10}"
+                               inputmode="numeric">
+                    </div>
+                    <p class="auth-note">Мы отправим SMS с кодом подтверждения</p>
+                    <button class="btn-red full-width" id="send-sms-btn">
+                        Получить код
+                    </button>
+                    <p class="terms">
+                        Нажимая кнопку, вы соглашаетесь с 
+                        <a href="#" class="terms-link">правилами обработки данных</a>
+                    </p>
+                </div>
+
+                <!-- Шаг 2: Ввод кода из SMS -->
+                <div class="auth-step" id="step-code" style="display: none;">
+                    <h4>Введите код из SMS</h4>
+                    <div class="sms-code-container">
+                        <div class="sms-code-input">
+                            <input type="text" maxlength="1" class="code-digit" data-index="0">
+                            <input type="text" maxlength="1" class="code-digit" data-index="1">
+                            <input type="text" maxlength="1" class="code-digit" data-index="2">
+                            <input type="text" maxlength="1" class="code-digit" data-index="3">
+                        </div>
+                        <p class="phone-number-display">
+                            Код отправлен на номер:<br>
+                            <span id="phone-display">+7 (999) 123-45-67</span>
+                        </p>
+                    </div>
+                    <p class="timer" id="code-timer">
+                        Отправить код повторно через: <span id="timer-seconds">60</span> сек
+                    </p>
+                    <button class="btn-red full-width" id="verify-code-btn">
+                        Подтвердить
+                    </button>
+                    <button class="btn-link" id="resend-code-btn" disabled>
+                        Отправить код повторно
+                    </button>
+                </div>
+
+                <!-- Шаг 3: Регистрация имени -->
+                <div class="auth-step" id="step-name" style="display: none;">
+                    <h4>Как к вам обращаться?</h4>
+                    <div class="form-group">
+                        <input type="text" id="user-name-input" 
+                               placeholder="Ваше имя"
+                               maxlength="50">
+                    </div>
+                    <p class="auth-note">
+                        Имя нужно для обращения при доставке
+                    </p>
+                    <button class="btn-red full-width" id="save-name-btn">
+                        Сохранить
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Футер -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <img src="images/logo.png" alt="Kсуши" class="footer-logo-img">
+                    <div class="footer-info">
+                        <h3>Kсуши</h3>
+                        <p>© 2026 Доставка суши и роллов</p>
+                    </div>
+                </div>
+                <div class="footer-contacts">
+                    <p><i class="fas fa-phone"></i> 8 (923) 462-11-67</p>
+                    <p><i class="fas fa-clock"></i> Режим работы: 10:00 - 23:00</p>
+                    <p><i class="fas fa-map-marker-alt"></i> г. Гурьевск, ул. Нагорная, 95</p>
+                </div>
+                <div class="footer-social">
+                    <p>Мы в соцсетях:</p>
+                    <div class="social-icons">
+                        <a href="#"><i class="fab fa-vk"></i></a>
+                        <a href="#"><i class="fab fa-telegram"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <div style="margin-top: 20px;">
+                            <a href="cook.html" style="color: #666; font-size: 12px; text-decoration: none;">
+                                <i class="fas fa-user-tie"></i> Панель сотрудников
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+    // Дополнительная инициализация
+    document.addEventListener('DOMContentLoaded', function() {
+        // Инициализация кнопки оформления заказа
+        const checkoutBtn = document.getElementById('checkout-btn');
+        if (checkoutBtn) {
+            checkoutBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (window.processCheckout) {
+                    window.processCheckout();
+                } else {
+                    console.error('Функция processCheckout не найдена');
+                    showNotification('Ошибка оформления заказа', 'error');
+                }
+            });
+        }
+        
+        // Обработчик для кнопок оформления заказа
+        document.querySelectorAll('.btn-order:not(#checkout-btn)').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (window.processCheckout) {
+                    window.processCheckout();
+                }
+            });
+        });
+    });
+    </script>
+</body>
+</html>

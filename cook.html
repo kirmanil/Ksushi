@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель сотрудников - Kсуши</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/cook.css">
+    <style>
+        
+        /* Дополнительные стили для авторизации */
+        .cook-auth-step {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .sms-code-input {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 25px 0;
+        }
+        
+        .cook-code-digit {
+            width: 60px;
+            height: 70px;
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #333;
+            border-radius: 8px;
+            color: white;
+            transition: all 0.3s;
+        }
+        
+        .cook-code-digit:focus {
+            outline: none;
+            border-color: #ff0000;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .timer {
+            text-align: center;
+            color: #999;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+        
+        .btn-link {
+            background: none;
+            border: none;
+            color: #ff0000;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 15px;
+            display: block;
+            width: 100%;
+            text-align: center;
+            padding: 10px;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .btn-link:hover:not(:disabled) {
+            color: #cc0000;
+        }
+        
+        .btn-link:disabled {
+            color: #666;
+            cursor: not-allowed;
+            text-decoration: none;
+        }
+    </style>
+    <script type="module" src="js/firebase-config.js"></script>
+</head>
+<body>
+    <!-- Фоновое изображение -->
+    <div class="background-overlay"></div>
+    
+    <!-- Шапка для сотрудников -->
+    <header class="cook-header">
+        <div class="container">
+            <!-- ОБНОВЛЕННЫЙ БЛОК С ЛОГОТИПОМ -->
+            <a href="index.html" class="cook-logo" style="text-decoration: none; display: flex; align-items: center; gap: 15px;">
+                <img src="images/logo.png" alt="Kсуши" class="logo-img" style="height: 50px;">
+                <div>
+                    <h1 style="color: #ff0000; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; margin: 0;">Панель сотрудников</h1>
+                    <p style="color: #ccc; font-size: 14px; margin: 5px 0 0 0;">Система управления заказами</p>
+                </div>
+            </a>
+            <!-- КОНЕЦ ОБНОВЛЕННОГО БЛОКА -->
+            
+            <div class="employee-info">
+                <div class="employee-role" id="employee-role">Загрузка...</div>
+                <button class="btn-logout-cook" id="logout-cook">
+                    <i class="fas fa-sign-out-alt"></i> Выйти
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Основное содержимое -->
+    <main class="cook-main">
+        <div class="container">
+            <!-- Если сотрудник не авторизован -->
+            <div class="auth-required-section" id="cook-auth-required" style="display: none;">
+                <div class="auth-required-card">
+                    <i class="fas fa-user-shield auth-icon"></i>
+                    <h2>Доступ для сотрудников</h2>
+                    <p>Войдите в систему, используя ваш рабочий телефон</p>
+                    
+                    <!-- Шаг 1: Ввод телефона -->
+                    <div class="cook-auth-step" id="cook-step-phone">
+                        <div class="auth-options" style="max-width: 400px; margin: 0 auto;">
+                            <div class="phone-input-container" style="margin-bottom: 20px;">
+                                <div class="phone-prefix">+7</div>
+                                <input type="tel" id="cook-phone-input" 
+                                       placeholder="Рабочий телефон"
+                                       maxlength="10"
+                                       pattern="[0-9]{10}">
+                            </div>
+                            <button class="btn-red" id="cook-login-btn" style="width: 100%;">
+                                <i class="fas fa-sign-in-alt"></i> Получить код
+                            </button>
+                        </div>
+                        
+                        <div style="margin-top: 30px; color: #666; font-size: 14px;">
+                            <p>Примеры рабочих телефонов:</p>
+                            <ul style="text-align: left; padding-left: 20px; margin-top: 10px;">
+                                <li>Шеф-повар: +7 923 526 01 96</li>
+                                <li>Курьер: +7 923 672 12 22</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- Шаг 2: Ввод SMS кода -->
+                    <div class="cook-auth-step" id="cook-step-code">
+                        <h4>Введите код из SMS</h4>
+                        <p style="color: #ccc; margin-bottom: 20px; font-size: 14px;">
+                            Код отправлен на номер:<br>
+                            <span id="employee-phone-display" style="color: white; font-weight: 600;">+7 (923) 526-01-96</span>
+                        </p>
+                        
+                        <div class="sms-code-input">
+                            <input type="text" maxlength="1" class="cook-code-digit" data-index="0">
+                            <input type="text" maxlength="1" class="cook-code-digit" data-index="1">
+                            <input type="text" maxlength="1" class="cook-code-digit" data-index="2">
+                            <input type="text" maxlength="1" class="cook-code-digit" data-index="3">
+                        </div>
+                        
+                        <p class="timer" id="cook-code-timer">
+                            Отправить код повторно через: <span id="cook-timer-seconds">60</span> сек
+                        </p>
+                        
+                        <button class="btn-red" id="verify-cook-code" style="width: 100%; margin-bottom: 15px;">
+                            Подтвердить
+                        </button>
+                        
+                        <button class="btn-link" id="resend-cook-code" disabled>
+                            Отправить код повторно
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Если сотрудник авторизован -->
+            <div id="cook-dashboard" style="display: none;">
+                <!-- Табы -->
+                <div class="cook-tabs" id="cook-tabs">
+                    <button class="cook-tab active" data-tab="new-orders">Новые заказы</button>
+                    <button class="cook-tab" data-tab="cooking">В готовке</button>
+                    <button class="cook-tab" data-tab="ready">Готово к выдаче</button>
+                    <button class="cook-tab" data-tab="delivering" id="delivery-tab">Доставка</button>
+                    <button class="cook-tab" data-tab="statistics">Статистика</button>
+                </div>
+
+                <!-- Контент табов -->
+                <div class="cook-content">
+                    <!-- Новые заказы -->
+                    <div class="cook-tab-content active" id="new-orders-content">
+                        <h2 style="color: white; margin-bottom: 20px;">
+                            <i class="fas fa-bell"></i> Новые заказы
+                            <span class="badge" id="new-orders-count" 
+                                  style="background: #ff0000; color: white; padding: 5px 10px; border-radius: 20px; font-size: 14px; margin-left: 10px;">0</span>
+                        </h2>
+                        <div class="orders-container" id="new-orders-list">
+                            <!-- Новые заказы будут загружены через JS -->
+                        </div>
+                    </div>
+
+                    <!-- Заказы в готовке -->
+                    <div class="cook-tab-content" id="cooking-content">
+                        <h2 style="color: white; margin-bottom: 20px;">
+                            <i class="fas fa-utensils"></i> В процессе готовки
+                        </h2>
+                        <div class="orders-container" id="cooking-orders-list">
+                            <!-- Заказы в готовке будут загружены через JS -->
+                        </div>
+                    </div>
+
+                    <!-- Готовые заказы -->
+                    <div class="cook-tab-content" id="ready-content">
+                        <h2 style="color: white; margin-bottom: 20px;">
+                            <i class="fas fa-check-circle"></i> Готово к выдаче
+                        </h2>
+                        <div class="orders-container" id="ready-orders-list">
+                            <!-- Готовые заказы будут загружены через JS -->
+                        </div>
+                    </div>
+
+                    <!-- Доставка (только для курьеров) -->
+                    <div class="cook-tab-content" id="delivering-content">
+                        <div class="delivery-info" id="current-delivery" style="display: none;">
+                            <div class="delivery-header">
+                                <i class="fas fa-motorcycle"></i>
+                                <h3>Текущая доставка</h3>
+                            </div>
+                            
+                            <div class="delivery-details">
+                                <div class="delivery-card">
+                                    <h4><i class="fas fa-map-marker-alt"></i> Адрес доставки</h4>
+                                    <p id="delivery-address">Загрузка...</p>
+                                    <p id="delivery-apartment"></p>
+                                    <p id="delivery-comment"></p>
+                                </div>
+                                
+                                <div class="delivery-card">
+                                    <h4><i class="fas fa-user"></i> Информация о клиенте</h4>
+                                    <p id="client-name">Загрузка...</p>
+                                    <p id="client-phone">Загрузка...</p>
+                                </div>
+                                
+                                <div class="delivery-card">
+                                    <h4><i class="fas fa-list"></i> Состав заказа</h4>
+                                    <div id="delivery-items">
+                                        <!-- Товары будут загружены -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="payment-details">
+                                <h4><i class="fas fa-money-bill-wave"></i> Оплата</h4>
+                                <p>Способ оплаты: <span id="payment-method">Наличные</span></p>
+                                <p>К оплате:</p>
+                                <div class="payment-total" id="delivery-total">0₽</div>
+                                <p id="payment-note">Клиент ожидает доставку</p>
+                            </div>
+                            
+                            <div class="delivery-actions">
+                                <button class="btn-delivered" id="mark-delivered">
+                                    <i class="fas fa-check"></i> Доставлено
+                                </button>
+                                <button class="btn-problem" id="report-problem">
+                                    <i class="fas fa-exclamation-triangle"></i> Проблема с доставкой
+                                </button>
+                            </div>
+                            <button class="btn-logout-cook" id="clear-orders-btn" style="background: rgba(255, 100, 0, 0.1);">
+                                <i class="fas fa-trash"></i> Очистить заказы
+                            </button>
+                        </div>
+                        
+                        <div id="no-delivery" style="text-align: center; padding: 50px 20px; display: none;">
+                            <i class="fas fa-motorcycle" style="font-size: 64px; color: #666; margin-bottom: 20px;"></i>
+                            <h3 style="color: #ccc; margin-bottom: 15px;">Нет активных доставок</h3>
+                            <p style="color: #666;">Когда повар изменит статус заказа на "В пути", здесь появится информация для доставки.</p>
+                        </div>
+                        
+                        <h2 style="color: white; margin-top: 40px; margin-bottom: 20px;">
+                            <i class="fas fa-history"></i> История доставок
+                        </h2>
+                        <div class="orders-container" id="delivery-history">
+                            <!-- История доставок будет загружена через JS -->
+                        </div>
+                    </div>
+
+                    <!-- Статистика -->
+                    <div class="cook-tab-content" id="statistics-content">
+                        <h2 style="color: white; margin-bottom: 30px;">
+                            <i class="fas fa-chart-line"></i> Статистика за сегодня
+                        </h2>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <span class="stat-number" id="stats-total-orders">0</span>
+                                <span class="stat-label">Всего заказов</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-number" id="stats-completed">0</span>
+                                <span class="stat-label">Завершено</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-number" id="stats-revenue">0₽</span>
+                                <span class="stat-label">Выручка</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-number" id="stats-avg-time">0м</span>
+                                <span class="stat-label">Среднее время</span>
+                            </div>
+                        </div>
+                        
+                        <h3 style="color: white; margin: 40px 0 20px;">
+                            <i class="fas fa-star"></i> Самые популярные позиции
+                        </h3>
+                        <div class="popular-items" id="popular-items">
+                            <!-- Популярные позиции будут загружены через JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Футер -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <!-- ОБНОВЛЕННЫЙ БЛОК С ЛОГОТИПОМ В ФУТЕРЕ -->
+                <a href="index.html" class="footer-logo" style="text-decoration: none; display: flex; align-items: center; gap: 15px;">
+                    <img src="images/logo.png" alt="Kсуши" class="footer-logo-img">
+                    <div class="footer-info">
+                        <h3 style="color: white; margin: 0;">Kсуши</h3>
+                        <p style="color: #999; margin: 5px 0 0 0;">© 2026 Система управления заказами</p>
+                    </div>
+                </a>
+                <!-- КОНЕЦ ОБНОВЛЕННОГО БЛОКА -->
+                
+                <div class="footer-contacts">
+                    <p><i class="fas fa-phone"></i> Служба поддержки: 8 (923) 462-11-67</p>
+                    <p><i class="fas fa-clock"></i> Режим работы: 10:00 - 23:00</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Модальное окно для проблем с доставкой -->
+    <div class="modal-overlay" id="problem-modal" style="display: none;">
+        <div class="modal auth-modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Проблема с доставкой</h3>
+                <button class="close-modal" id="close-problem-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-content">
+                <div class="form-group">
+                    <label for="problem-type">Тип проблемы:</label>
+                    <select id="problem-type" class="full-width">
+                        <option value="">Выберите тип проблемы</option>
+                        <option value="client_not_available">Клиент не отвечает</option>
+                        <option value="wrong_address">Неверный адрес</option>
+                        <option value="payment_issue">Проблема с оплатой</option>
+                        <option value="traffic_delay">Пробки/опоздание</option>
+                        <option value="other">Другое</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="problem-description">Описание проблемы:</label>
+                    <textarea id="problem-description" rows="4" placeholder="Опишите проблему подробнее..." class="full-width"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="next-action">Рекомендуемое действие:</label>
+                    <select id="next-action" class="full-width">
+                        <option value="">Выберите действие</option>
+                        <option value="wait">Подождать клиента</option>
+                        <option value="return">Вернуть в ресторан</option>
+                        <option value="contact_manager">Связаться с менеджером</option>
+                        <option value="cancel">Отменить заказ</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions" style="margin-top: 25px;">
+                    <button class="btn-black" id="cancel-problem">Отмена</button>
+                    <button class="btn-red" id="submit-problem">Отправить отчет</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/cook.js"></script>
+    <script>
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        // Показываем первый шаг авторизации
+        const cookAuthRequired = document.getElementById('cook-auth-required');
+        if (cookAuthRequired && cookAuthRequired.style.display === 'block') {
+            document.getElementById('cook-step-phone').style.display = 'block';
+        }
+        
+        // Фокус на поле ввода телефона
+        setTimeout(() => {
+            const phoneInput = document.getElementById('cook-phone-input');
+            if (phoneInput) phoneInput.focus();
+        }, 300);
+    });
+</script>
+</body>
+</html>

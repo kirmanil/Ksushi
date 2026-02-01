@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Мой профиль - Kсуши</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/profile.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- API Яндекс Карт -->
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=ВАШ_API_КЛЮЧ&lang=ru_RU" type="text/javascript"></script>
+    <script type="module" src="js/firebase-config.js"></script>
+</head>
+<body>
+    <!-- Фоновое изображение -->
+    <div class="background-overlay"></div>
+    
+    <!-- Шапка профиля -->
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <a href="index.html">
+                    <img src="images/logo.png" alt="Kсуши" class="logo-img">
+                </a>
+                <div class="logo-text">
+                    <h1>Kсуши</h1>
+                    <p>Мой профиль</p>
+                </div>
+            </div>
+            
+            <div class="header-controls">
+                <a href="index.html" class="btn-back">
+                    <i class="fas fa-arrow-left"></i> На главную
+                </a>
+                <div class="cart">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span class="cart-count">0</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Основное содержимое профиля -->
+    <main class="profile-main">
+        <div class="container">
+            <!-- Если пользователь не авторизован -->
+            <div class="auth-required-section" id="auth-required" style="display: none;">
+                <div class="auth-required-card">
+                    <i class="fas fa-lock auth-icon"></i>
+                    <h2>Требуется авторизация</h2>
+                    <p>Войдите в свой аккаунт, чтобы управлять профилем и адресом доставки</p>
+                    <div class="auth-options">
+                        <button class="btn-red" id="login-with-phone">
+                            <i class="fas fa-mobile-alt"></i> Войти по номеру телефона
+                        </button>
+                        <p class="auth-divider">или</p>
+                        <button class="btn-black" id="register-new">
+                            <i class="fas fa-user-plus"></i> Создать новый аккаунт
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Если пользователь авторизован -->
+            <div class="profile-content" id="profile-content">
+                <!-- Заголовок профиля -->
+                <div class="profile-header">
+                    <div class="profile-avatar">
+                        <img src="images/profile-avatar.png" alt="Аватар" id="profile-avatar-img">
+                        <input type="file" id="avatar-upload" class="avatar-input" accept="image/*" style="display: none;">
+                        <button class="change-avatar" title="Сменить фото" id="change-avatar-btn">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                        <div class="avatar-options" id="avatar-options">
+                            <div class="avatar-option" id="upload-avatar-btn">
+                                <i class="fas fa-upload"></i> Загрузить фото
+                            </div>
+                            <div class="avatar-option delete" id="remove-avatar-btn">
+                                <i class="fas fa-trash"></i> Удалить фото
+                            </div>
+                        </div>
+                    </div>
+                    <div class="notifications-bell" id="notifications-bell" title="Уведомления">
+                        <i class="fas fa-bell" style="font-size: 24px; color: #ccc;"></i>
+                        <span class="notifications-count" id="notifications-count" style="display: none;">0</span>
+                    </div>
+                    <div class="profile-info">
+                        <h2 id="profile-name">Гость</h2>
+                        <p class="profile-phone" id="profile-phone">Не указан</p>
+                        <div class="profile-stats">
+                            <div class="stat">
+                                <span class="stat-number" id="orders-count">0</span>
+                                <span class="stat-label">Заказов</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-number" id="bonus-points">0</span>
+                                <span class="stat-label">Бонусы</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn-logout" id="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Выйти
+                    </button>
+                </div>
+
+                <!-- Основные разделы профиля -->
+                <div class="profile-sections">
+                    <!-- 1. Личные данные -->
+                    <section class="profile-section-card" id="personal-data">
+                        <div class="section-header">
+                            <i class="fas fa-user section-icon"></i>
+                            <h3>Личные данные</h3>
+                            <button class="edit-toggle" data-section="personal">
+                                <i class="fas fa-edit"></i> Изменить
+                            </button>
+                        </div>
+                        <div class="section-content">
+                            <div class="view-mode">
+                                <div class="info-row">
+                                    <span class="info-label">Имя:</span>
+                                    <span class="info-value" id="view-name">Не указано</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Email:</span>
+                                    <span class="info-value" id="view-email">Не указан</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Дата рождения:</span>
+                                    <span class="info-value" id="view-birthday">Не указана</span>
+                                </div>
+                            </div>
+                            <div class="edit-mode" style="display: none;">
+                                <div class="form-group">
+                                    <label for="edit-name">Имя</label>
+                                    <input type="text" id="edit-name" placeholder="Введите ваше имя">
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-email">Email</label>
+                                    <input type="email" id="edit-email" placeholder="example@mail.ru">
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-birthday">Дата рождения</label>
+                                    <input type="date" id="edit-birthday">
+                                </div>
+                                <div class="form-actions">
+                                    <button class="btn-black cancel-edit" data-section="personal">Отмена</button>
+                                    <button class="btn-red save-edit" data-section="personal">
+                                        <i class="fas fa-save"></i> Сохранить
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 2. Адрес доставки -->
+                    <section class="profile-section-card" id="delivery-address">
+                        <div class="section-header">
+                            <i class="fas fa-map-marker-alt section-icon"></i>
+                            <h3>Адрес доставки</h3>
+                            <button class="btn-red" id="add-new-address">
+                                <i class="fas fa-plus"></i> Добавить адрес
+                            </button>
+                        </div>
+                        <div class="section-content">
+                            <!-- Список сохраненных адресов -->
+                            <div class="saved-addresses" id="addresses-list">
+                                <p class="no-addresses">У вас нет сохраненных адресов</p>
+                            </div>
+
+                            <!-- Форма добавления нового адреса -->
+                            <div class="new-address-form" id="new-address-form" style="display: none;">
+                                <h4><i class="fas fa-home"></i> Новый адрес</h4>
+                                
+                                <div class="form-group">
+                                    <label for="address-title">Название адреса</label>
+                                    <input type="text" id="address-title" placeholder="Например: Дом, Работа, Родители">
+                                </div>
+
+                                <!-- Детали адреса -->
+                                <div class="address-details-grid">
+                                    <div class="form-group">
+                                        <label for="address-city">Город</label>
+                                        <input type="text" id="address-city" value="Гурьевск" readonly>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="address-street">Улица</label>
+                                        <input type="text" id="address-street" placeholder="Введите название улицы">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="address-house">Дом</label>
+                                        <input type="text" id="address-house" placeholder="Номер дома">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="address-apartment">Квартира/Офис</label>
+                                        <input type="text" id="address-apartment" placeholder="№ (необязательно)">
+                                    </div>
+                                </div>
+
+                                <!-- Дополнительные детали -->
+                                <div class="address-extra-details">
+                                    <div class="form-group">
+                                        <label for="address-entrance">Подъезд</label>
+                                        <input type="text" id="address-entrance" placeholder="№ (необязательно)">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="address-floor">Этаж</label>
+                                        <input type="text" id="address-floor" placeholder="№ (необязательно)">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="address-intercom">Домофон</label>
+                                        <input type="text" id="address-intercom" placeholder="Код (необязательно)">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="address-comment">Комментарий для курьера</label>
+                                    <textarea id="address-comment" rows="3" 
+                                              placeholder="Например: позвонить за 5 минут, оставить у двери (необязательно)"></textarea>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button class="btn-black" id="cancel-new-address">
+                                        Отмена
+                                    </button>
+                                    <button class="btn-red" id="save-new-address">
+                                        <i class="fas fa-save"></i> Сохранить адрес
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 3. Мои заказы -->
+                    <section class="profile-section-card" id="orders-history">
+                        <div class="section-header">
+                            <i class="fas fa-history section-icon"></i>
+                            <h3>Мои заказы</h3>
+                            <button class="btn-red" id="open-history-btn">
+                                <i class="fas fa-list"></i> Вся история
+                            </button>
+                        </div>
+                        <div class="section-content">
+                            <!-- Активные заказы -->
+                            <div class="active-orders-section" id="active-orders-section">
+                                <h4>
+                                    <i class="fas fa-bell"></i> Активные заказы
+                                    <span class="badge" id="active-orders-count">0</span>
+                                </h4>
+                                <div id="active-orders-list">
+                                    <!-- Активные заказы будут загружены здесь -->
+                                </div>
+                            </div>
+                            
+                            <!-- Последний завершенный заказ -->
+                            <div class="last-order-section" id="last-order-section" style="display: none;">
+                                <h4>
+                                    <i class="fas fa-check-circle"></i> Последний заказ
+                                </h4>
+                                <div id="last-order-card"></div>
+                            </div>
+                            
+                            <!-- Кнопка "Вся история" убрана по требованию -->
+                        </div>
+                    </section>
+
+                    <!-- 4. Бонусы и промокоды -->
+                    <section class="profile-section-card" id="bonuses">
+                        <div class="section-header">
+                            <i class="fas fa-gift section-icon"></i>
+                            <h3>Бонусы и промокоды</h3>
+                        </div>
+                        <div class="section-content">
+                            <div class="bonus-card">
+                                <div class="bonus-info">
+                                    <h4>Бонусная программа</h4>
+                                    <p>За каждый заказ получайте 5% бонусами</p>
+                                    <div class="progress-bar">
+                                        <div class="progress" id="bonus-progress" style="width: 30%"></div>
+                                    </div>
+                                    <p class="bonus-next-level">До следующего уровня: <span>2000₽</span></p>
+                                </div>
+                                <div class="bonus-balance">
+                                    <span class="bonus-amount" id="bonus-balance">0</span>
+                                    <span class="bonus-label">бонусов</span>
+                                </div>
+                            </div>
+                            
+                            <div class="promocodes-section">
+                                <h4>Активные промокоды:</h4>
+                                <div class="promocodes-list" id="promocodes-list">
+                                    <div class="promocode-item">
+                                        <span class="promocode-code">KSUSHI20</span>
+                                        <span class="promocode-desc">Скидка 20% на первый заказ</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 5. Настройки уведомлений -->
+                    <section class="profile-section-card" id="notifications">
+                        <div class="section-header">
+                            <i class="fas fa-bell section-icon"></i>
+                            <h3>Настройки уведомлений</h3>
+                        </div>
+                        <div class="section-content">
+                            <div class="notifications-settings">
+                                <label class="checkbox-setting">
+                                    <input type="checkbox" id="notify-sms" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="checkbox-text">
+                                        <strong>SMS-уведомления</strong>
+                                        <small>О статусе заказа</small>
+                                    </span>
+                                </label>
+                                
+                                <label class="checkbox-setting">
+                                    <input type="checkbox" id="notify-email">
+                                    <span class="checkmark"></span>
+                                    <span class="checkbox-text">
+                                        <strong>Email-рассылка</strong>
+                                        <small>Новости и акции</small>
+                                    </span>
+                                </label>
+                                
+                                <label class="checkbox-setting">
+                                    <input type="checkbox" id="notify-promo" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="checkbox-text">
+                                        <strong>Специальные предложения</strong>
+                                        <small>Персональные скидки</small>
+                                    </span>
+                                </label>
+                                
+                                <label class="checkbox-setting">
+                                    <input type="checkbox" id="notify-order-updates" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="checkbox-text">
+                                        <strong>Обновления заказа</strong>
+                                        <small>Изменение статуса доставки</small>
+                                    </span>
+                                </label>
+                            </div>
+                            <button class="btn-red" id="save-notifications">
+                                <i class="fas fa-save"></i> Сохранить настройки
+                            </button>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Модальное окно авторизации по телефону -->
+    <div class="modal-overlay" id="auth-modal" style="display: none;">
+        <div class="modal auth-modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-mobile-alt"></i> Вход по номеру телефона</h3>
+                <button class="close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-content">
+                <!-- Шаг 1: Ввод телефона -->
+                <div class="auth-step active" id="step-phone">
+                    <h4>Введите номер телефона</h4>
+                    <div class="phone-input-container">
+                        <div class="phone-prefix">+7</div>
+                        <input type="tel" id="phone-input" 
+                               placeholder="(999) 123-45-67" 
+                               maxlength="10"
+                               pattern="[0-9]{10}"
+                               inputmode="numeric">
+                    </div>
+                    <p class="auth-note">Мы отправим SMS с кодом подтверждения</p>
+                    <button class="btn-red full-width" id="send-sms-code">
+                        Получить код
+                    </button>
+                </div>
+
+                <!-- Шаг 2: Ввод кода из SMS -->
+                <div class="auth-step" id="step-code" style="display: none;">
+                    <h4>Введите код из SMS</h4>
+                    <div class="sms-code-input">
+                        <input type="text" maxlength="1" class="code-digit" inputmode="numeric">
+                        <input type="text" maxlength="1" class="code-digit" inputmode="numeric">
+                        <input type="text" maxlength="1" class="code-digit" inputmode="numeric">
+                        <input type="text" maxlength="1" class="code-digit" inputmode="numeric">
+                    </div>
+                    <p class="timer" id="code-timer">
+                        Отправить код повторно через: <span id="timer-seconds">60</span> сек
+                    </p>
+                    <button class="btn-red full-width" id="verify-code">
+                        Подтвердить
+                    </button>
+                    <button class="btn-link" id="resend-code">
+                        Отправить код повторно
+                    </button>
+                </div>
+
+                <!-- Шаг 3: Регистрация профиля -->
+                <div class="auth-step" id="step-register" style="display: none;">
+                    <h4>Заполните ваш профиль</h4>
+                    <div class="form-group">
+                        <label for="register-name">Ваше имя</label>
+                        <input type="text" id="register-name" 
+                               placeholder="Как к вам обращаться?">
+                    </div>
+                    <div class="form-group">
+                        <label for="register-email">Email (необязательно)</label>
+                        <input type="email" id="register-email" 
+                               placeholder="example@mail.ru"
+                               inputmode="email">
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn-black" id="skip-registration">
+                            Пропустить
+                        </button>
+                        <button class="btn-red" id="complete-registration">
+                            Сохранить профиль
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно истории заказов -->
+    <div class="modal-overlay" id="history-modal" style="display: none;">
+        <div class="modal history-modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-history"></i> История заказов</h3>
+                <button class="close-modal" id="close-history-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-content">
+                <div id="history-orders-list">
+                    <!-- История заказов будет загружена через JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно деталей заказа -->
+    <div class="modal-overlay" id="order-details-modal" style="display: none;">
+        <div class="modal order-details-modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-info-circle"></i> Детали заказа</h3>
+                <button class="close-modal" id="close-order-details"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="order-details-content">
+                <div id="order-details-content">
+                    <!-- Детали заказа будут загружены через JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Футер -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <img src="images/logo.png" alt="Kсуши" class="footer-logo-img">
+                    <div class="footer-info">
+                        <h3>Kсуши</h3>
+                        <p>© 2026 Доставка суши и роллов</p>
+                    </div>
+                </div>
+                <div class="footer-contacts">
+                    <p><i class="fas fa-phone"></i> 8 (923) 462-11-67</p>
+                    <p><i class="fas fa-clock"></i> Режим работы: 10:00 - 23:00</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/profile.js"></script>
+    <script src="js/yandex-maps.js"></script>
+</body>
+</html>
