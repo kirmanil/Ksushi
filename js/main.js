@@ -7,15 +7,73 @@ let deliveryPrice = 0;
 
 // Функция для открытия авторизации
 function openAuthModal() {
-    if (window.openAuthModal) {
-        // Используем функцию из main.js
-        window.openAuthModal();
-    } else if (window.smsAuth && window.smsAuth.openAuthModal) {
+    console.log('openAuthModal вызвана');
+    
+    // Проверяем, есть ли smsAuth
+    if (window.smsAuth && typeof window.smsAuth.openAuthModal === 'function') {
+        console.log('Используем smsAuth.openAuthModal');
         window.smsAuth.openAuthModal();
     } else {
-        // Fallback
-        showNotification('Авторизация временно недоступна', 'error');
+        console.log('smsAuth не найден, используем fallback');
+        // Fallback авторизация
+        showFallbackAuth();
     }
+}
+
+// Fallback авторизация
+function showFallbackAuth() {
+    showNotification('Модуль авторизации загружается...', 'info');
+    
+    // Простая заглушка для авторизации
+    setTimeout(() => {
+        const phone = prompt('Введите номер телефона для входа (10 цифр без кода страны):');
+        
+        if (phone && phone.replace(/\D/g, '').length === 10) {
+            const cleanedPhone = phone.replace(/\D/g, '');
+            
+            // Проверяем, есть ли уже пользователь с таким телефоном
+            const users = JSON.parse(localStorage.getItem('ksushi_users') || '[]');
+            let existingUser = users.find(u => u.phone === cleanedPhone);
+            
+            if (existingUser) {
+                // Пользователь существует
+                localStorage.setItem('userData', JSON.stringify(existingUser));
+                showNotification(`С возвращением, ${existingUser.name || 'Пользователь'}!`, 'success');
+            } else {
+                // Новый пользователь
+                const mockUser = {
+                    id: 'user_' + Date.now(),
+                    phone: cleanedPhone,
+                    name: 'Пользователь',
+                    bonuses: 100,
+                    addresses: [],
+                    orders: [],
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                
+                localStorage.setItem('userData', JSON.stringify(mockUser));
+                
+                // Добавляем в глобальный список
+                users.push(mockUser);
+                localStorage.setItem('ksushi_users', JSON.stringify(users));
+                
+                showNotification('Регистрация выполнена успешно!', 'success');
+            }
+            
+            // Обновляем интерфейс
+            updateAuthButton();
+            updateCartAddressFromProfile();
+            updateAvailableBonuses();
+            
+            // Перезагружаем страницу для обновления всех компонентов
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else if (phone !== null) {
+            showNotification('Введите корректный номер телефона (10 цифр)', 'error');
+        }
+    }, 500);
 }
 
 // Инициализация
@@ -59,14 +117,47 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 // Настройка кнопок авторизации
 function setupAuthButtons() {
-    // Кнопка входа в шапке
+    // Удаляем старые обработчики
     const authBtn = document.getElementById('open-auth');
     if (authBtn) {
-        authBtn.addEventListener('click', function(e) {
+        // Клонируем и заменяем элемент для удаления старых обработчиков
+        const newAuthBtn = authBtn.cloneNode(true);
+        authBtn.parentNode.replaceChild(newAuthBtn, authBtn);
+        
+        // Добавляем новый обработчик
+        newAuthBtn.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
+            console.log('Кнопка входа нажата');
             openAuthModal();
         });
     }
+    
+    // Кнопка входа из корзины
+    const openAuthFromCart = document.getElementById('open-auth-from-cart');
+    if (openAuthFromCart) {
+        const newOpenAuthFromCart = openAuthFromCart.cloneNode(true);
+        openAuthFromCart.parentNode.replaceChild(newOpenAuthFromCart, openAuthFromCart);
+        
+        newOpenAuthFromCart.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Кнопка входа из корзины нажата');
+            openAuthModal();
+        });
+    }
+    
+    // Универсальные кнопки входа
+    setTimeout(() => {
+        document.querySelectorAll('.auth-btn, .login-btn, [data-action="login"]').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                openAuthModal();
+            });
+        });
+    }, 500);
+}
     
     // Кнопка входа из корзины (если пользователь не авторизован)
     const openAuthFromCart = document.getElementById('open-auth-from-cart');
@@ -83,8 +174,7 @@ function setupAuthButtons() {
             e.preventDefault();
             openAuthModal();
         });
-    });
-}
+    })
 
 // Загрузка данных из базы
 async function loadDataFromDatabase() {
@@ -1932,62 +2022,37 @@ style.textContent = `
         border: 1px solid #0096ff;
     }
 `;
-document.head.appendChild(style);
-
-if (!window.smsAuth) {
-    console.warn('smsAuth не загружен, создаем заглушку');
-    window.smsAuth = {
-        openAuthModal: function() {
-            showNotification('Модуль авторизации временно недоступен', 'error');
-            // Простая заглушка для авторизации
-            const phone = prompt('Введите номер телефона для входа (только цифры):');
-            if (phone && phone.replace(/\D/g, '').length === 10) {
-                const mockUser = {
-                    id: Date.now(),
-                    phone: phone,
-                    name: 'Пользователь',
-                    bonuses: 100,
-                    addresses: [],
-                    orders: [],
-                    createdAt: new Date().toISOString()
-                };
-                localStorage.setItem('userData', JSON.stringify(mockUser));
-                
-                // Обновляем глобальный список
-                updateGlobalUsers(mockUser);
-                
-                // Обновляем интерфейс
+setTimeout(() => {
+    if (!window.smsAuth) {
+        console.warn('smsAuth не загружен, создаем заглушку');
+        window.smsAuth = {
+            openAuthModal: function() {
+                console.log('Заглушка smsAuth.openAuthModal вызвана');
+                showFallbackAuth();
+            },
+            
+            logout: function() {
+                localStorage.removeItem('userData');
                 updateAuthButton();
                 updateCartAddressFromProfile();
                 updateAvailableBonuses();
-                
-                showNotification('Вход выполнен успешно!', 'success');
+                showNotification('Вы вышли из системы', 'info');
+            },
+            
+            updateCartAddress: function(userDataStr) {
+                updateCartAddressFromProfile();
+            },
+            
+            updateAuthButtonOnMainPage: function(userDataStr) {
+                updateAuthButton();
             }
-        },
-        
-        logout: function() {
-            localStorage.removeItem('userData');
-            updateAuthButton();
-            updateCartAddressFromProfile();
-            updateAvailableBonuses();
-            showNotification('Вы вышли из системы', 'info');
-        },
-        
-        updateCartAddress: function(userDataStr) {
-            // Обновляем адрес в корзине
-            updateCartAddressFromProfile();
-        },
-        
-        updateAuthButtonOnMainPage: function(userDataStr) {
-            // Обновляем кнопку авторизации
-            updateAuthButton();
-        }
-    };
-}
+        };
+    }
+}, 1000);
 
 // Экспортируем функции для использования в других файлах
 window.processCheckout = processCheckout;
 window.resetUsedPromos = resetUsedPromos;
 window.applyPromoCode = applyPromoCode;
 window.removePromoCode = removePromoCode;
-window.openAuthModal = openAuthModal; // Экспортируем функцию открытия авторизации
+// window.openAuthModal = openAuthModal; // УБЕРИТЕ ЭТУ СТРОКУ - не экспортируем
