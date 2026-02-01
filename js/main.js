@@ -1,5 +1,146 @@
-const products = {
-    new: [
+let products = {};
+let promoCodes = {};
+let cart = JSON.parse(localStorage.getItem('cart')) || [];
+let activePromo = localStorage.getItem('activePromo') || null;
+let usedBonuses = parseInt(localStorage.getItem('usedBonuses')) || 0;
+let deliveryPrice = 0;
+
+// Функция для открытия авторизации
+function openAuthModal() {
+    if (window.openAuthModal) {
+        // Используем функцию из main.js
+        window.openAuthModal();
+    } else if (window.smsAuth && window.smsAuth.openAuthModal) {
+        window.smsAuth.openAuthModal();
+    } else {
+        // Fallback
+        showNotification('Авторизация временно недоступна', 'error');
+    }
+}
+
+// Инициализация
+// Инициализация
+document.addEventListener('DOMContentLoaded', async function() {
+    // Загружаем данные из базы
+    await loadDataFromDatabase();
+    
+    initBannerSlider();
+    loadProducts();
+    updateCartCount();
+    setupCart();
+    setupOrderButtons();
+    
+    // Загрузка сохраненного адреса
+    loadSavedAddress();
+    
+    // Обновляем кнопку входа/профиля
+    updateAuthButton();
+    
+    // Обновляем адрес в корзине из профиля
+    updateCartAddressFromProfile();
+    
+    // Инициализация промокодов и бонусов
+    updateAvailableBonuses();
+    updateActivePromoDisplay();
+    updatePricing();
+    
+    // Загрузка сохраненных промокодов и бонусов
+    loadSavedPromoAndBonuses();
+    
+    // Установка обработчиков событий
+    setupPromoHandlers();
+    setupBonusesHandlers();
+    
+    // Настраиваем обработчики для кнопок входа
+    setupAuthButtons();
+    
+    // Показываем подсказку о промокоде
+    setTimeout(showPromoHint, 1000);
+});
+// Настройка кнопок авторизации
+function setupAuthButtons() {
+    // Кнопка входа в шапке
+    const authBtn = document.getElementById('open-auth');
+    if (authBtn) {
+        authBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            openAuthModal();
+        });
+    }
+    
+    // Кнопка входа из корзины (если пользователь не авторизован)
+    const openAuthFromCart = document.getElementById('open-auth-from-cart');
+    if (openAuthFromCart) {
+        openAuthFromCart.addEventListener('click', function(e) {
+            e.preventDefault();
+            openAuthModal();
+        });
+    }
+    
+    // Кнопки входа на других страницах
+    document.querySelectorAll('.auth-btn, .login-btn, [data-action="login"]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            openAuthModal();
+        });
+    });
+}
+
+// Загрузка данных из базы
+async function loadDataFromDatabase() {
+    try {
+        if (window.database) {
+            console.log('Database: Загрузка данных из облачной базы...');
+            
+            // Загружаем всю базу данных
+            const dbData = await database.loadDatabase();
+            
+            // Загружаем продукты
+            if (dbData.products && dbData.products.length > 0) {
+                // Преобразуем массив продуктов в объект по категориям
+                products = {};
+                dbData.products.forEach(product => {
+                    if (!products[product.category]) {
+                        products[product.category] = [];
+                    }
+                    products[product.category].push(product);
+                });
+                console.log('Database: Продукты загружены из облака');
+            } else {
+                // Используем локальные продукты как fallback
+                loadLocalProducts();
+            }
+            
+            // Загружаем промокоды
+            if (dbData.promocodes && dbData.promocodes.length > 0) {
+                // Преобразуем массив промокодов в объект
+                promoCodes = {};
+                dbData.promocodes.forEach(promo => {
+                    promoCodes[promo.code] = promo;
+                });
+                console.log('Database: Промокоды загружены из облака');
+            } else {
+                // Используем локальные промокоды как fallback
+                loadLocalPromoCodes();
+            }
+            
+            console.log('Database: Данные успешно загружены');
+        } else {
+            console.log('Database: Используем локальные данные');
+            loadLocalProducts();
+            loadLocalPromoCodes();
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки данных из базы:', error);
+        loadLocalProducts();
+        loadLocalPromoCodes();
+    }
+}
+
+// Загрузка локальных продуктов
+function loadLocalProducts() {
+    products = {
+        new: [
         {
             id: 1,
             name: "Суши бургер",
@@ -160,39 +301,98 @@ const products = {
         }
     ]
 };
+}
 
-async function processCheckout() {
-    // Проверяем корзину
-    if (cart.length === 0) {
-        showNotification('Корзина пуста!', 'error');
-        return;
-    }
-    
-    // Проверяем авторизацию
-    const userData = localStorage.getItem('userData');
-    if (!userData) {
-        showNotification('Для оформления заказа войдите в систему', 'info');
-        openCart();
-        if (window.smsAuth && window.smsAuth.openAuthModal) {
-            window.smsAuth.openAuthModal();
+// Загрузка локальных промокодов
+function loadLocalPromoCodes() {
+    promoCodes = {
+        'KSUSHI20': { 
+            code: 'KSUSHI20',
+            discount: 20, 
+            type: 'percent', 
+            minOrder: 0, 
+            name: "Скидка 20% на первый заказ",
+            description: "Действует только для первого заказа каждого пользователя",
+            oneTime: true 
+        },
+        'FREEDELIVERY': { 
+            code: 'FREEDELIVERY',
+            discount: 100, 
+            type: 'fixed', 
+            minOrder: 1500, 
+            name: "Бесплатная доставка",
+            description: "Скидка 100₽ на доставку (эквивалент бесплатной доставки)",
+            oneTime: false 
+        },
+        'WELCOME10': { 
+            code: 'WELCOME10',
+            discount: 10, 
+            type: 'percent', 
+            minOrder: 500, 
+            name: "Приветственная скидка 10%",
+            description: "Для новых пользователей",
+            oneTime: true 
+        },
+        'HAPPY2026': { 
+            code: 'HAPPY2026',
+            discount: 15, 
+            type: 'percent', 
+            minOrder: 1000, 
+            name: "Скидка 15% к 2026 году",
+            description: "Праздничная скидка",
+            oneTime: false 
+        },
+        'SUMMER25': { 
+            code: 'SUMMER25',
+            discount: 25, 
+            type: 'percent', 
+            minOrder: 2000, 
+            name: "Летняя скидка 25%",
+            description: "Специальное летнее предложение",
+            oneTime: false 
         }
-        return;
-    }
-    
+    };
+}
+
+// Оформление заказа с сохранением в облако
+async function processCheckout() {
     try {
-        const user = JSON.parse(userData);
-        const userId = user.id;
-        
-        // Получаем свежие данные пользователя из localStorage
-        const users = JSON.parse(localStorage.getItem('ksushi_users') || '[]');
-        const userIndex = users.findIndex(u => u.id === userId || u.phone === user.phone);
-        
-        if (userIndex === -1) {
-            showNotification('Пользователь не найден', 'error');
+        // Проверяем авторизацию
+        const userData = localStorage.getItem('userData');
+        if (!userData) {
+            showNotification('Для оформления заказа войдите в систему', 'info');
+            openCart();
+            if (window.smsAuth && window.smsAuth.openAuthModal) {
+                window.smsAuth.openAuthModal();
+            }
             return;
         }
         
-        const freshUser = users[userIndex];
+        // Проверяем, что корзина не пуста
+        if (cart.length === 0) {
+            showNotification('Корзина пуста', 'error');
+            return;
+        }
+        
+        const user = JSON.parse(userData);
+        
+        // Получаем свежие данные пользователя из базы данных
+        let freshUser;
+        if (window.database) {
+            freshUser = await database.getUserByPhone(user.phone);
+        }
+        
+        // Если не нашли в базе, ищем в localStorage
+        if (!freshUser) {
+            const users = JSON.parse(localStorage.getItem('ksushi_users') || '[]');
+            const userIndex = users.findIndex(u => u.id === user.id || u.phone === user.phone);
+            freshUser = users[userIndex];
+        }
+        
+        if (!freshUser) {
+            showNotification('Пользователь не найден', 'error');
+            return;
+        }
         
         // Проверяем адрес доставки
         if (!freshUser.addresses || freshUser.addresses.length === 0) {
@@ -230,7 +430,7 @@ async function processCheckout() {
         
         // Создаем заказ
         const order = {
-            userId: userId,
+            userId: freshUser.id,
             date: new Date().toISOString(),
             items: cart.map(item => ({
                 id: item.id,
@@ -273,130 +473,91 @@ async function processCheckout() {
             }
         }
         
-        // Обновляем бонусы пользователя
-        const newBonuses = (freshUser.bonuses || 0) - usedBonuses + Math.floor(total * 0.05);
+        // Рассчитываем новые бонусы
+        const earnedBonuses = Math.floor(total * 0.05);
+        const newBonuses = (freshUser.bonuses || 0) - usedBonuses + earnedBonuses;
         
         // Обновляем пользователя
         freshUser.bonuses = newBonuses;
         freshUser.lastOrder = new Date().toISOString();
         freshUser.orders = freshUser.orders || [];
         freshUser.orders.unshift(order.id);
+        freshUser.updatedAt = new Date().toISOString();
         
-        // Сохраняем обновленного пользователя
-        users[userIndex] = freshUser;
-        localStorage.setItem('ksushi_users', JSON.stringify(users));
+        // Показываем уведомление о начале оформления
+        showNotification('Оформляем заказ...', 'info');
         
-        // Сохраняем заказ
-        const orders = JSON.parse(localStorage.getItem('ksushi_orders') || '[]');
-        orders.push(order);
-        localStorage.setItem('ksushi_orders', JSON.stringify(orders));
+        // Сохраняем пользователя в базу данных
+        let userSaveSuccess = false;
+        if (window.database) {
+            userSaveSuccess = await database.saveUser(freshUser);
+            console.log('Database: Пользователь сохранен в облако');
+        } else {
+            // Резервное сохранение в localStorage
+            const users = JSON.parse(localStorage.getItem('ksushi_users') || '[]');
+            const userIndex = users.findIndex(u => u.phone === freshUser.phone);
+            if (userIndex !== -1) {
+                users[userIndex] = freshUser;
+            } else {
+                users.push(freshUser);
+            }
+            localStorage.setItem('ksushi_users', JSON.stringify(users));
+            userSaveSuccess = true;
+        }
+        
+        if (!userSaveSuccess) {
+            showNotification('Ошибка сохранения данных пользователя', 'error');
+            return;
+        }
+        
+        // Сохраняем заказ в базу данных
+        let orderSaveSuccess = false;
+        if (window.database) {
+            orderSaveSuccess = await database.saveOrder(order);
+            console.log('Database: Заказ сохранен в облако');
+        } else {
+            // Резервное сохранение в localStorage
+            const orders = JSON.parse(localStorage.getItem('ksushi_orders') || '[]');
+            orders.push(order);
+            localStorage.setItem('ksushi_orders', JSON.stringify(orders));
+            orderSaveSuccess = true;
+        }
+        
+        if (!orderSaveSuccess) {
+            showNotification('Ошибка сохранения заказа в базу данных', 'error');
+            return;
+        }
         
         // Обновляем localStorage текущего пользователя
         localStorage.setItem('userData', JSON.stringify(freshUser));
         
-        // Показываем подтверждение
-        showOrderConfirmation(order, defaultAddress, Math.floor(total * 0.05));
+        // Обновляем глобальный список пользователей
+        updateGlobalUsers(freshUser);
         
-        // Очищаем корзину
+        // Показываем подтверждение заказа - ПЕРЕД очисткой корзины!
+        showOrderConfirmation(order, defaultAddress, earnedBonuses);
+        
+        // Очищаем корзину ТОЛЬКО ПОСЛЕ успешного показа подтверждения
         cart = [];
         activePromo = null;
         usedBonuses = 0;
         
+        // Обновляем UI корзины
         updateCartCount();
         updateCartDisplay();
         updateLocalStorage();
         updateAuthButton();
         
-        closeCart();
+        // Закрываем корзину - УБИРАЕМ этот вызов отсюда!
+        // closeCart(); // УДАЛИТЬ ЭТУ СТРОКУ!
+        
+        console.log('Заказ успешно оформлен:', order.id);
         
     } catch (error) {
         console.error('Ошибка оформления заказа:', error);
         showNotification('Ошибка оформления заказа', 'error');
     }
 }
-
-// Корзина и данные промокодов/бонусов
-let cart = JSON.parse(localStorage.getItem('cart')) || [];
-let activePromo = localStorage.getItem('activePromo') || null;
-let usedBonuses = parseInt(localStorage.getItem('usedBonuses')) || 0;
-let deliveryPrice = 0;
-
-// База промокодов
-const promoCodes = {
-    'KSUSHI20': { 
-        discount: 20, 
-        type: 'percent', 
-        minOrder: 0, 
-        name: "Скидка 20% на первый заказ",
-        description: "Действует только для первого заказа каждого пользователя",
-        oneTime: true 
-    },
-    'FREEDELIVERY': { 
-        discount: 100, 
-        type: 'fixed', 
-        minOrder: 1500, 
-        name: "Бесплатная доставка",
-        description: "Скидка 100₽ на доставку (эквивалент бесплатной доставки)",
-        oneTime: false 
-    },
-    'WELCOME10': { 
-        discount: 10, 
-        type: 'percent', 
-        minOrder: 500, 
-        name: "Приветственная скидка 10%",
-        description: "Для новых пользователей",
-        oneTime: true 
-    },
-    'HAPPY2026': { 
-        discount: 15, 
-        type: 'percent', 
-        minOrder: 1000, 
-        name: "Скидка 15% к 2026 году",
-        description: "Праздничная скидка",
-        oneTime: false 
-    },
-    'SUMMER25': { 
-        discount: 25, 
-        type: 'percent', 
-        minOrder: 2000, 
-        name: "Летняя скидка 25%",
-        description: "Специальное летнее предложение",
-        oneTime: false 
-    }
-};
-
-// Инициализация
-document.addEventListener('DOMContentLoaded', function() {
-    initBannerSlider();
-    loadProducts();
-    updateCartCount();
-    setupCart();
-    setupOrderButtons();
-    
-    // Загрузка сохраненного адреса
-    loadSavedAddress();
-    
-    // Обновляем кнопку входа/профиля
-    updateAuthButton();
-    
-    // Обновляем адрес в корзине из профиля
-    updateCartAddressFromProfile();
-    
-    // Инициализация промокодов и бонусов
-    updateAvailableBonuses();
-    updateActivePromoDisplay();
-    updatePricing();
-    
-    // Загрузка сохраненных промокодов и бонусов
-    loadSavedPromoAndBonuses();
-    
-    // Установка обработчиков событий
-    setupPromoHandlers();
-    setupBonusesHandlers();
-    
-    // Показываем подсказку о промокоде
-    setTimeout(showPromoHint, 1000);
-});
 
 // Проверка возможности использования промокода
 function canUsePromoCode(promoCode, userPhone) {
@@ -528,15 +689,17 @@ function loadProducts() {
     // Новинки
     const newProductsGrid = document.getElementById('new-products');
     if (newProductsGrid) {
-        products.new.forEach(product => {
-            newProductsGrid.appendChild(createProductCard(product));
-        });
+        if (products.new) {
+            products.new.forEach(product => {
+                newProductsGrid.appendChild(createProductCard(product));
+            });
+        }
     }
     
     // Загрузка по категориям
     ['rolls', 'sushi', 'onigiri', 'sets', 'drinks', 'fastfood'].forEach(category => {
         const grid = document.getElementById(category);
-        if (grid) {
+        if (grid && products[category]) {
             products[category].forEach(product => {
                 grid.appendChild(createProductCard(product));
             });
@@ -723,6 +886,17 @@ function setupCart() {
     
     function closeCartFunc() {
         cartSidebar.classList.remove('active');
+        cartOverlay.classList.remove('active');
+    }
+}
+function closeCart() {
+    const cartSidebar = document.querySelector('.cart-sidebar');
+    const cartOverlay = document.querySelector('.cart-overlay');
+    
+    if (cartSidebar) {
+        cartSidebar.classList.remove('active');
+    }
+    if (cartOverlay) {
         cartOverlay.classList.remove('active');
     }
 }
@@ -1394,9 +1568,94 @@ function updateGlobalUsers(updatedUser) {
 }
 
 // Показать подтверждение заказа
+// Показать подтверждение заказа - обновленная версия
 function showOrderConfirmation(order, address, bonusEarned) {
+    // Создаем модальное окно
     const modal = document.createElement('div');
     modal.className = 'order-confirmation-modal';
+    
+    // Создаем контент модального окна
+    const modalContent = document.createElement('div');
+    modalContent.className = 'confirmation-content';
+    modalContent.innerHTML = `
+        <div style="margin-bottom: 30px;">
+            <div style="
+                width: 80px;
+                height: 80px;
+                background: #ff0000;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 20px;
+                font-size: 36px;
+                color: white;
+            ">
+                <i class="fas fa-check"></i>
+            </div>
+            <h2 style="color: #ff0000; margin-bottom: 10px; font-size: 28px;">
+                Заказ оформлен!
+            </h2>
+            <p style="color: #ccc; margin-bottom: 5px;">Номер заказа: ${order.id}</p>
+        </div>
+        
+        <div style="
+            background: rgba(51, 51, 51, 0.5);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            text-align: left;
+        ">
+            <h3 style="color: white; margin-bottom: 15px; font-size: 18px;">
+                <i class="fas fa-map-marker-alt" style="color: #ff0000; margin-right: 10px;"></i>
+                Адрес доставки
+            </h3>
+            <p style="color: white; margin-bottom: 8px; font-weight: 600;">${address.title}</p>
+            <p style="color: #ccc; font-size: 15px; line-height: 1.5;">${address.fullAddress}</p>
+            ${address.apartment ? `<p style="color: #999; font-size: 14px;">Квартира: ${address.apartment}</p>` : ''}
+        </div>
+        
+        <div style="
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(255, 0, 0, 0.1);
+            border-radius: 12px;
+        ">
+            <div style="text-align: left;">
+                <p style="color: #ccc; font-size: 14px; margin-bottom: 5px;">Сумма заказа</p>
+                <p style="color: white; font-size: 24px; font-weight: 900;">${order.total}₽</p>
+            </div>
+            <div style="text-align: right;">
+                <p style="color: #ccc; font-size: 14px; margin-bottom: 5px;">Получено бонусов</p>
+                <p style="color: #00ff00; font-size: 24px; font-weight: 900;">+${bonusEarned}</p>
+            </div>
+        </div>
+        
+        <p style="color: #ccc; margin-bottom: 25px; font-size: 16px; line-height: 1.5;">
+            <i class="fas fa-clock" style="color: #ff0000; margin-right: 8px;"></i>
+            Ожидайте доставку в течение 60 минут!
+        </p>
+        
+        <button id="close-confirmation" class="btn-red" style="
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: 700;
+            border-radius: 12px;
+            width: 100%;
+            cursor: pointer;
+            border: none;
+            outline: none;
+            background: #ff0000;
+            color: white;
+            transition: background 0.3s;
+        ">
+            Отлично!
+        </button>
+    `;
+    
+    // Стили для модального окна
     modal.style.cssText = `
         position: fixed;
         top: 0;
@@ -1411,105 +1670,58 @@ function showOrderConfirmation(order, address, bonusEarned) {
         padding: 20px;
     `;
     
-    modal.innerHTML = `
-        <div style="
-            background: rgba(0, 0, 0, 0.95);
-            border: 3px solid #ff0000;
-            border-radius: 20px;
-            padding: 40px;
-            max-width: 500px;
-            width: 100%;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(255, 0, 0, 0.3);
-            animation: fadeIn 0.3s ease;
-        ">
-            <div style="margin-bottom: 30px;">
-                <div style="
-                    width: 80px;
-                    height: 80px;
-                    background: #ff0000;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin: 0 auto 20px;
-                    font-size: 36px;
-                    color: white;
-                ">
-                    <i class="fas fa-check"></i>
-                </div>
-                <h2 style="color: #ff0000; margin-bottom: 10px; font-size: 28px;">
-                    Заказ оформлен!
-                </h2>
-                <p style="color: #ccc; margin-bottom: 5px;">Номер заказа: ${order.id}</p>
-            </div>
-            
-            <div style="
-                background: rgba(51, 51, 51, 0.5);
-                padding: 20px;
-                border-radius: 12px;
-                margin-bottom: 25px;
-                text-align: left;
-            ">
-                <h3 style="color: white; margin-bottom: 15px; font-size: 18px;">
-                    <i class="fas fa-map-marker-alt" style="color: #ff0000; margin-right: 10px;"></i>
-                    Адрес доставки
-                </h3>
-                <p style="color: white; margin-bottom: 8px; font-weight: 600;">${address.title}</p>
-                <p style="color: #ccc; font-size: 15px; line-height: 1.5;">${address.fullAddress}</p>
-                ${address.apartment ? `<p style="color: #999; font-size: 14px;">Квартира: ${address.apartment}</p>` : ''}
-            </div>
-            
-            <div style="
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 25px;
-                padding: 15px;
-                background: rgba(255, 0, 0, 0.1);
-                border-radius: 12px;
-            ">
-                <div style="text-align: left;">
-                    <p style="color: #ccc; font-size: 14px; margin-bottom: 5px;">Сумма заказа</p>
-                    <p style="color: white; font-size: 24px; font-weight: 900;">${order.total}₽</p>
-                </div>
-                <div style="text-align: right;">
-                    <p style="color: #ccc; font-size: 14px; margin-bottom: 5px;">Получено бонусов</p>
-                    <p style="color: #00ff00; font-size: 24px; font-weight: 900;">+${bonusEarned}</p>
-                </div>
-            </div>
-            
-            <p style="color: #ccc; margin-bottom: 25px; font-size: 16px; line-height: 1.5;">
-                <i class="fas fa-clock" style="color: #ff0000; margin-right: 8px;"></i>
-                Ожидайте доставку в течение 60 минут!
-            </p>
-            
-            <button id="close-confirmation" class="btn-red" style="
-                padding: 15px 40px;
-                font-size: 18px;
-                font-weight: 700;
-                border-radius: 12px;
-                width: 100%;
-            ">
-                Отлично!
-            </button>
-        </div>
+    modalContent.style.cssText = `
+        background: rgba(0, 0, 0, 0.95);
+        border: 3px solid #ff0000;
+        border-radius: 20px;
+        padding: 40px;
+        max-width: 500px;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(255, 0, 0, 0.3);
+        animation: fadeIn 0.3s ease;
     `;
     
+    modal.appendChild(modalContent);
     document.body.appendChild(modal);
     
-    // Обработчик закрытия
-    document.getElementById('close-confirmation').addEventListener('click', function() {
-        modal.remove();
-    });
+    // Обработчик для кнопки "Отлично!"
+    setTimeout(() => {
+        const closeButton = document.getElementById('close-confirmation');
+        if (closeButton) {
+            closeButton.addEventListener('click', function closeModalHandler() {
+                // Закрываем модальное окно
+                modal.remove();
+                
+                // Закрываем корзину после подтверждения
+                closeCart();
+                
+                // Показываем финальное уведомление
+                showNotification('Спасибо за заказ! Мы уже готовим его для вас.', 'success');
+            });
+        }
+    }, 100);
     
     // Закрытие по клику вне модалки
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
             modal.remove();
+            closeCart();
         }
     });
+    
+    // Закрытие по нажатию Esc
+    const closeOnEsc = function(e) {
+        if (e.key === 'Escape') {
+            modal.remove();
+            closeCart();
+            document.removeEventListener('keydown', closeOnEsc);
+        }
+    };
+    
+    document.addEventListener('keydown', closeOnEsc);
 }
-
+// Обновление кнопки авторизации
 // Обновление кнопки авторизации
 function updateAuthButton() {
     const userData = localStorage.getItem('userData');
@@ -1573,6 +1785,7 @@ function updateAuthButton() {
 }
 
 // Обновление адреса в корзине из профиля
+// Обновление адреса в корзине из профиля
 function updateCartAddressFromProfile() {
     const userData = localStorage.getItem('userData');
     const addressElement = document.getElementById('cart-delivery-address');
@@ -1608,17 +1821,6 @@ function updateCartAddressFromProfile() {
         // Пользователь не авторизован
         addressElement.innerHTML = '<a href="#" id="open-auth-from-cart">Войдите для выбора адреса</a>';
         addressElement.classList.add('address-notice');
-        
-        // Добавляем обработчик для кнопки входа
-        const loginLink = document.getElementById('open-auth-from-cart');
-        if (loginLink) {
-            loginLink.addEventListener('click', function(e) {
-                e.preventDefault();
-                if (window.smsAuth && window.smsAuth.openAuthModal) {
-                    window.smsAuth.openAuthModal();
-                }
-            });
-        }
     }
 }
 
@@ -1732,8 +1934,60 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+if (!window.smsAuth) {
+    console.warn('smsAuth не загружен, создаем заглушку');
+    window.smsAuth = {
+        openAuthModal: function() {
+            showNotification('Модуль авторизации временно недоступен', 'error');
+            // Простая заглушка для авторизации
+            const phone = prompt('Введите номер телефона для входа (только цифры):');
+            if (phone && phone.replace(/\D/g, '').length === 10) {
+                const mockUser = {
+                    id: Date.now(),
+                    phone: phone,
+                    name: 'Пользователь',
+                    bonuses: 100,
+                    addresses: [],
+                    orders: [],
+                    createdAt: new Date().toISOString()
+                };
+                localStorage.setItem('userData', JSON.stringify(mockUser));
+                
+                // Обновляем глобальный список
+                updateGlobalUsers(mockUser);
+                
+                // Обновляем интерфейс
+                updateAuthButton();
+                updateCartAddressFromProfile();
+                updateAvailableBonuses();
+                
+                showNotification('Вход выполнен успешно!', 'success');
+            }
+        },
+        
+        logout: function() {
+            localStorage.removeItem('userData');
+            updateAuthButton();
+            updateCartAddressFromProfile();
+            updateAvailableBonuses();
+            showNotification('Вы вышли из системы', 'info');
+        },
+        
+        updateCartAddress: function(userDataStr) {
+            // Обновляем адрес в корзине
+            updateCartAddressFromProfile();
+        },
+        
+        updateAuthButtonOnMainPage: function(userDataStr) {
+            // Обновляем кнопку авторизации
+            updateAuthButton();
+        }
+    };
+}
+
 // Экспортируем функции для использования в других файлах
 window.processCheckout = processCheckout;
 window.resetUsedPromos = resetUsedPromos;
 window.applyPromoCode = applyPromoCode;
 window.removePromoCode = removePromoCode;
+window.openAuthModal = openAuthModal; // Экспортируем функцию открытия авторизации
