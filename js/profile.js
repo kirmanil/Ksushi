@@ -1,10 +1,20 @@
-// ОПТИМИЗИРОВАННЫЙ ПРОФИЛЬ ДЛЯ МОБИЛЬНЫХ
+// ОПТИМИЗИРОВАННЫЙ ПРОФИЛЬ ДЛЯ МОБИЛЬНЫХ С ИНТЕГРАЦИЕЙ ОБЛАЧНОЙ БАЗЫ
 
 // Глобальные переменные
 let avatarOptionsOpen = false;
 
 // Основная функция инициализации
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // Ждем загрузки базы данных
+    if (window.database) {
+        try {
+            await database.init();
+            console.log('Database: Инициализирована для профиля');
+        } catch (error) {
+            console.error('Database: Ошибка инициализации:', error);
+        }
+    }
+    
     checkAuthAndLoadProfile();
     setupProfileEvents();
     loadCartCount();
@@ -43,47 +53,103 @@ function showAuthRequired() {
 }
 
 // Загрузка данных профиля
-function loadProfileData(userDataString) {
+async function loadProfileData(userDataString) {
     try {
         const user = JSON.parse(userDataString);
         
+        // Обновляем данные из облачной базы, если доступно
+        let freshUser = user;
+        if (window.database && user.phone) {
+            const cloudUser = await database.getUserByPhone(user.phone);
+            if (cloudUser) {
+                freshUser = {
+                    ...freshUser,
+                    bonuses: cloudUser.bonuses !== undefined ? cloudUser.bonuses : freshUser.bonuses,
+                    orders: cloudUser.orders || freshUser.orders || [],
+                    addresses: cloudUser.addresses || freshUser.addresses || [],
+                    name: cloudUser.name || freshUser.name,
+                    email: cloudUser.email || freshUser.email,
+                    birthday: cloudUser.birthday || freshUser.birthday,
+                    notificationSettings: cloudUser.notificationSettings || freshUser.notificationSettings || {},
+                    avatar: cloudUser.avatar || freshUser.avatar
+                };
+                
+                // Обновляем localStorage
+                localStorage.setItem('userData', JSON.stringify(freshUser));
+            }
+        }
+        
         // Основная информация
-        setElementText('profile-name', user.name || 'Гость');
-        setElementText('profile-phone', user.phone ? formatPhone(user.phone) : 'Не указан');
+        setElementText('profile-name', freshUser.name || 'Гость');
+        setElementText('profile-phone', freshUser.phone ? formatPhone(freshUser.phone) : 'Не указан');
         
         // Статистика
-        const ordersCount = user.orders ? user.orders.length : 0;
-        const totalSpent = user.orders ? user.orders.reduce((sum, order) => sum + (order.total || 0), 0) : 0;
-        const bonusPoints = user.bonuses || 0;
+        const ordersCount = freshUser.orders ? freshUser.orders.length : 0;
+        const totalSpent = calculateTotalSpent(freshUser.orders || []);
+        const bonusPoints = freshUser.bonuses || 0;
         
         setElementText('orders-count', ordersCount);
         setElementText('bonus-points', bonusPoints);
         
         // Личные данные
-        setElementText('view-name', user.name || 'Не указано');
-        setElementText('view-email', user.email || 'Не указан');
-        setElementText('view-birthday', user.birthday || 'Не указана');
+        setElementText('view-name', freshUser.name || 'Не указано');
+        setElementText('view-email', freshUser.email || 'Не указан');
+        setElementText('view-birthday', freshUser.birthday || 'Не указана');
         
         // Бонусы
         setElementText('bonus-balance', bonusPoints);
         updateBonusProgress(bonusPoints);
         
         // Адреса
-        loadAddresses(user.addresses || []);
+        loadAddresses(freshUser.addresses || []);
         
         // Заказы
-        loadOrders(user.orders || []);
+        await loadOrders(freshUser.orders || []);
         
         // Настройки уведомлений
-        loadNotificationSettings(user.notificationSettings || {});
+        loadNotificationSettings(freshUser.notificationSettings || {});
         
         // Аватар
-        loadAvatar(user.avatar);
+        loadAvatar(freshUser.avatar);
         
     } catch (error) {
         console.error('Ошибка загрузки профиля:', error);
         showAuthRequired();
     }
+}
+
+// Расчет общей суммы потраченных средств
+async function calculateTotalSpent(orderIds) {
+    if (!orderIds || orderIds.length === 0) return 0;
+    
+    let total = 0;
+    
+    try {
+        // Сначала пробуем загрузить из облака
+        if (window.database) {
+            for (const orderId of orderIds) {
+                const order = await database.getOrderById(orderId);
+                if (order && order.total) {
+                    total += order.total;
+                }
+            }
+        }
+        
+        // Если нет базы или не все заказы найдены, пробуем localStorage
+        if (total === 0) {
+            const orders = JSON.parse(localStorage.getItem('ksushi_orders') || '[]');
+            for (const orderId of orderIds) {
+                const order = orders.find(o => o.id === orderId);
+                if (order && order.total) {
+                    total += order.total;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка расчета общей суммы:', error);
+    }
+    
+    return total;
 }
 
 // Загрузка аватара
@@ -225,16 +291,23 @@ function handleAvatarUpload(event) {
 }
 
 // Сохранение аватара
-function saveAvatar(imageData) {
+async function saveAvatar(imageData) {
     const userData = localStorage.getItem('userData');
     if (!userData) return;
     
     try {
         const user = JSON.parse(userData);
         user.avatar = imageData;
+        user.updatedAt = new Date().toISOString();
         
         // Сохраняем обновленные данные
         localStorage.setItem('userData', JSON.stringify(user));
+        
+        // Сохраняем в облачную базу
+        if (window.database) {
+            await database.saveUser(user);
+            console.log('Database: Аватар сохранен в облако');
+        }
         
         // Обновляем глобальный список
         updateGlobalUsers(user);
@@ -251,7 +324,7 @@ function saveAvatar(imageData) {
 }
 
 // Удаление аватара
-function removeAvatar() {
+async function removeAvatar() {
     if (!confirm('Удалить текущий аватар?')) return;
     
     const userData = localStorage.getItem('userData');
@@ -260,9 +333,16 @@ function removeAvatar() {
     try {
         const user = JSON.parse(userData);
         delete user.avatar;
+        user.updatedAt = new Date().toISOString();
         
         // Сохраняем обновленные данные
         localStorage.setItem('userData', JSON.stringify(user));
+        
+        // Сохраняем в облачную базу
+        if (window.database) {
+            await database.saveUser(user);
+            console.log('Database: Аватар удален из облака');
+        }
         
         // Обновляем глобальный список
         updateGlobalUsers(user);
@@ -384,14 +464,14 @@ function setupAddressButtons() {
 }
 
 // Загрузка заказов
-function loadOrders(orders) {
+async function loadOrders(orderIds) {
     const activeOrdersList = document.getElementById('active-orders-list');
     const activeOrdersCount = document.getElementById('active-orders-count');
     const lastOrderSection = document.getElementById('last-order-section');
     const lastOrderCard = document.getElementById('last-order-card');
     const historyOrdersList = document.getElementById('history-orders-list');
     
-    if (!orders || orders.length === 0) {
+    if (!orderIds || orderIds.length === 0) {
         if (activeOrdersList) {
             activeOrdersList.innerHTML = `
                 <div style="text-align: center; padding: 30px; color: #666;">
@@ -411,6 +491,29 @@ function loadOrders(orders) {
         }
         if (activeOrdersCount) activeOrdersCount.textContent = '0';
         return;
+    }
+    
+    // Загружаем заказы из базы данных
+    let orders = [];
+    try {
+        if (window.database) {
+            // Загружаем заказы из облака
+            for (const orderId of orderIds) {
+                const order = await database.getOrderById(orderId);
+                if (order) {
+                    orders.push(order);
+                }
+            }
+        }
+        
+        // Если нет базы или не все заказы найдены, пробуем localStorage
+        if (orders.length === 0) {
+            const localOrders = JSON.parse(localStorage.getItem('ksushi_orders') || '[]');
+            orders = localOrders.filter(order => orderIds.includes(order.id));
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки заказов:', error);
+        orders = [];
     }
     
     // Сортируем по дате
@@ -717,8 +820,8 @@ function setupProfileEvents() {
 }
 
 // Автообновление заказов
-function startOrdersAutoRefresh() {
-    setInterval(() => {
+async function startOrdersAutoRefresh() {
+    setInterval(async () => {
         try {
             const currentUserDataStr = localStorage.getItem('userData');
             if (!currentUserDataStr) return;
@@ -726,32 +829,37 @@ function startOrdersAutoRefresh() {
             const currentUser = JSON.parse(currentUserDataStr);
             const userPhone = currentUser.phone;
             
-            const globalUsersStr = localStorage.getItem('ksushi_users');
-            if (!globalUsersStr) return;
-            
-            const globalUsers = JSON.parse(globalUsersStr);
-            const updatedUser = globalUsers.find(user => user.phone === userPhone);
-            
-            if (updatedUser && updatedUser.orders) {
-                // Обновляем только если есть изменения
-                if (JSON.stringify(currentUser.orders) !== JSON.stringify(updatedUser.orders)) {
-                    currentUser.orders = updatedUser.orders;
-                    if (updatedUser.bonuses !== undefined) {
-                        currentUser.bonuses = updatedUser.bonuses;
+            // Обновляем данные из облака
+            let updatedUser = currentUser;
+            if (window.database && userPhone) {
+                const cloudUser = await database.getUserByPhone(userPhone);
+                if (cloudUser) {
+                    updatedUser = {
+                        ...updatedUser,
+                        orders: cloudUser.orders || updatedUser.orders,
+                        bonuses: cloudUser.bonuses !== undefined ? cloudUser.bonuses : updatedUser.bonuses
+                    };
+                    
+                    // Обновляем только если есть изменения
+                    if (JSON.stringify(currentUser.orders) !== JSON.stringify(updatedUser.orders) ||
+                        currentUser.bonuses !== updatedUser.bonuses) {
+                        
+                        // Сохраняем обновленные данные
+                        updatedUser.updatedAt = new Date().toISOString();
+                        localStorage.setItem('userData', JSON.stringify(updatedUser));
+                        
+                        // Обновляем статистику
+                        const ordersCount = updatedUser.orders ? updatedUser.orders.length : 0;
+                        const bonusPoints = updatedUser.bonuses || 0;
+                        
+                        setElementText('orders-count', ordersCount);
+                        setElementText('bonus-points', bonusPoints);
+                        setElementText('bonus-balance', bonusPoints);
+                        updateBonusProgress(bonusPoints);
+                        
+                        // Обновляем заказы
+                        await loadOrders(updatedUser.orders || []);
                     }
-                    localStorage.setItem('userData', JSON.stringify(currentUser));
-                    
-                    // Обновляем статистику
-                    const ordersCount = updatedUser.orders.length;
-                    const bonusPoints = updatedUser.bonuses || 0;
-                    
-                    setElementText('orders-count', ordersCount);
-                    setElementText('bonus-points', bonusPoints);
-                    setElementText('bonus-balance', bonusPoints);
-                    updateBonusProgress(bonusPoints);
-                    
-                    // Обновляем заказы
-                    loadOrders(updatedUser.orders);
                 }
             }
         } catch (error) {
@@ -761,7 +869,7 @@ function startOrdersAutoRefresh() {
 }
 
 // Установка основного адреса
-function setDefaultAddress(addressId) {
+async function setDefaultAddress(addressId) {
     const userData = localStorage.getItem('userData');
     if (!userData) return;
     
@@ -773,7 +881,18 @@ function setDefaultAddress(addressId) {
             isDefault: addr.id === addressId
         }));
         
+        user.updatedAt = new Date().toISOString();
+        
+        // Сохраняем в localStorage
         localStorage.setItem('userData', JSON.stringify(user));
+        
+        // Сохраняем в облачную базу
+        if (window.database) {
+            await database.saveUser(user);
+            console.log('Database: Адреса обновлены в облако');
+        }
+        
+        // Обновляем глобальный список
         updateGlobalUsers(user);
         loadAddresses(user.addresses);
         
@@ -790,7 +909,7 @@ function setDefaultAddress(addressId) {
 }
 
 // Удаление адреса
-function deleteAddress(addressId) {
+async function deleteAddress(addressId) {
     if (!confirm('Вы уверены, что хотите удалить этот адрес?')) return;
     
     const userData = localStorage.getItem('userData');
@@ -812,7 +931,18 @@ function deleteAddress(addressId) {
             user.addresses[0].isDefault = true;
         }
         
+        user.updatedAt = new Date().toISOString();
+        
+        // Сохраняем в localStorage
         localStorage.setItem('userData', JSON.stringify(user));
+        
+        // Сохраняем в облачную базу
+        if (window.database) {
+            await database.saveUser(user);
+            console.log('Database: Адрес удален из облака');
+        }
+        
+        // Обновляем глобальный список
         updateGlobalUsers(user);
         loadAddresses(user.addresses);
         
@@ -847,9 +977,18 @@ function updateGlobalUsers(updatedUser) {
 }
 
 // Открытие модального окна авторизации
+// Открытие модального окна авторизации
 function openAuthModal() {
-    if (window.smsAuth) {
+    console.log('Profile.js: openAuthModal вызвана');
+    
+    // Проверяем глобальную функцию из main.js
+    if (typeof window.openAuthModal === 'function') {
+        window.openAuthModal();
+    } else if (window.smsAuth && typeof window.smsAuth.openAuthModal === 'function') {
         window.smsAuth.openAuthModal();
+    } else {
+        // Fallback
+        showNotification('Авторизация временно недоступна', 'error');
     }
 }
 
@@ -917,7 +1056,7 @@ function toggleEditMode(section, showEdit = true) {
 }
 
 // Сохранение личных данных
-function savePersonalData() {
+async function savePersonalData() {
     const name = document.getElementById('edit-name').value.trim();
     const email = document.getElementById('edit-email').value.trim();
     const birthday = document.getElementById('edit-birthday').value;
@@ -934,10 +1073,21 @@ function savePersonalData() {
             user.name = name;
             user.email = email || null;
             user.birthday = birthday || null;
+            user.updatedAt = new Date().toISOString();
             
+            // Сохраняем в localStorage
             localStorage.setItem('userData', JSON.stringify(user));
+            
+            // Сохраняем в облачную базу
+            if (window.database) {
+                await database.saveUser(user);
+                console.log('Database: Личные данные сохранены в облако');
+            }
+            
+            // Обновляем глобальный список
             updateGlobalUsers(user);
             
+            // Обновляем отображение
             document.getElementById('view-name').textContent = name;
             document.getElementById('view-email').textContent = email || 'Не указан';
             document.getElementById('view-birthday').textContent = birthday || 'Не указана';
@@ -996,7 +1146,7 @@ function setupAddressManagement() {
 }
 
 // Сохранение нового адреса
-function saveNewAddress() {
+async function saveNewAddress() {
     const title = document.getElementById('address-title').value.trim();
     const city = 'Гурьевск';
     const street = document.getElementById('address-street').value.trim();
@@ -1053,8 +1203,18 @@ function saveNewAddress() {
         
         user.addresses = user.addresses || [];
         user.addresses.push(newAddress);
+        user.updatedAt = new Date().toISOString();
         
+        // Сохраняем в localStorage
         localStorage.setItem('userData', JSON.stringify(user));
+        
+        // Сохраняем в облачную базу
+        if (window.database) {
+            await database.saveUser(user);
+            console.log('Database: Новый адрес сохранен в облако');
+        }
+        
+        // Обновляем глобальный список
         updateGlobalUsers(user);
         loadAddresses(user.addresses);
         
@@ -1102,7 +1262,7 @@ function resetAddressForm() {
 }
 
 // Сохранение настроек уведомлений
-function saveNotificationSettings() {
+async function saveNotificationSettings() {
     const settings = {
         notifySMS: document.getElementById('notify-sms').checked,
         notifyEmail: document.getElementById('notify-email').checked,
@@ -1115,7 +1275,18 @@ function saveNotificationSettings() {
         try {
             const user = JSON.parse(userData);
             user.notificationSettings = settings;
+            user.updatedAt = new Date().toISOString();
+            
+            // Сохраняем в localStorage
             localStorage.setItem('userData', JSON.stringify(user));
+            
+            // Сохраняем в облачную базу
+            if (window.database) {
+                await database.saveUser(user);
+                console.log('Database: Настройки уведомлений сохранены в облако');
+            }
+            
+            // Обновляем глобальный список
             updateGlobalUsers(user);
             showNotification('Настройки уведомлений сохранены!', 'success');
         } catch (error) {
@@ -1126,7 +1297,7 @@ function saveNotificationSettings() {
 }
 
 // Показать детали заказа
-function showOrderDetails(orderId) {
+async function showOrderDetails(orderId) {
     const modal = document.getElementById('order-details-modal');
     const content = document.getElementById('order-details-content');
     
@@ -1136,8 +1307,18 @@ function showOrderDetails(orderId) {
     if (!userData) return;
     
     try {
-        const user = JSON.parse(userData);
-        const order = user.orders?.find(o => o.id === orderId);
+        // Загружаем заказ из базы данных
+        let order = null;
+        
+        if (window.database) {
+            order = await database.getOrderById(orderId);
+        }
+        
+        // Если не нашли в облаке, ищем в localStorage
+        if (!order) {
+            const orders = JSON.parse(localStorage.getItem('ksushi_orders') || '[]');
+            order = orders.find(o => o.id === orderId);
+        }
         
         if (!order) {
             content.innerHTML = '<p style="padding: 20px; text-align: center; color: #ccc;">Заказ не найден</p>';
@@ -1156,7 +1337,7 @@ function showOrderDetails(orderId) {
                             <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #333;">
                                 <div>
                                     <div style="color: white;">${item.name}</div>
-                                    ${item.variant ? `<div style="color: #666; font-size: 12px;">${item.variant}</div>` : ''}
+                                    ${item.variantLabel ? `<div style="color: #666; font-size: 12px;">${item.variantLabel}</div>` : ''}
                                 </div>
                                 <div style="text-align: right;">
                                     <div style="color: white;">${item.quantity} × ${item.price}₽</div>
@@ -1178,7 +1359,8 @@ function showOrderDetails(orderId) {
                 ${order.address ? `
                     <div class="order-details-section">
                         <h4>Адрес доставки</h4>
-                        <p style="color: #ccc; margin-top: 10px;">${order.address}</p>
+                        <p style="color: #ccc; margin-top: 10px;">${order.address.title || 'Адрес'}</p>
+                        <p style="color: #ccc; font-size: 14px;">${order.address.fullAddress || ''}</p>
                     </div>
                 ` : ''}
                 
