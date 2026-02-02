@@ -4,11 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kсуши - Доставка суши по городу</title>
+    <!-- Убрать этот скрипт - он вызывает ошибку 404 -->
+    <!-- <script src="js/firebase-config.js"></script> -->
+    
+    <!-- Сначала стили -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://api-maps.yandex.ru/2.1/?b6337897-c1bc-4e10-8d2c-1f1416aa5f79&lang=ru_RU" type="text/javascript"></script>
-    <script type="module" src="js/firebase-config.js"></script>
-</button>
+    
+    <!-- Затем скрипты в правильном порядке -->
+    <script src="js/database.js"></script>
+    <script src="js/main.js" defer></script>
+    <!-- Убрать неправильный auth.js или исправить его -->
+    <!-- <script src="js/auth.js"></script> -->
+    
+    <!-- Комментируем Яндекс Карты пока не починим ключ -->
+    <!-- <script src="https://api-maps.yandex.ru/2.1/?b6337897-c1bc-4e10-8d2c-1f1416aa5f79&lang=ru_RU" type="text/javascript"></script> -->
+    
     <style>
         /* Стили для кнопки профиля */
         .profile-link {
@@ -585,8 +596,10 @@
         </div>
     </footer>
 
-    <script src="js/main.js"></script>
-    <script src="js/auth.js"></script>
+    <!-- Убрать дублирующиеся скрипты в конце -->
+    <!-- <script src="js/main.js"></script> -->
+    <!-- <script src="js/auth.js"></script> -->
+    
     <script>
     // Дополнительная инициализация
     document.addEventListener('DOMContentLoaded', function() {
