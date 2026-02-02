@@ -601,22 +601,23 @@ async function processCheckout() {
         }
         
         // Сохраняем заказ в базу данных
-        let orderSaveSuccess = false;
-        if (window.database) {
-            orderSaveSuccess = await database.saveOrder(order);
-            console.log('Database: Заказ сохранен в облако');
-        } else {
-            // Резервное сохранение в localStorage
-            const orders = JSON.parse(localStorage.getItem('ksushi_orders') || '[]');
-            orders.push(order);
-            localStorage.setItem('ksushi_orders', JSON.stringify(orders));
-            orderSaveSuccess = true;
-        }
-        
-        if (!orderSaveSuccess) {
-            showNotification('Ошибка сохранения заказа в базу данных', 'error');
-            return;
-        }
+// Сохраняем заказ в базу данных
+let orderSaveSuccess = false;
+if (window.database) {
+    orderSaveSuccess = await database.saveOrder(order);
+    console.log('Database: Заказ сохранен в облако');
+} else {
+    // Резервное сохранение в localStorage
+    const orders = JSON.parse(localStorage.getItem('ksushi_orders') || '[]');
+    if (!Array.isArray(orders)) {
+        // Если в localStorage хранится не массив, создаем новый массив
+        localStorage.setItem('ksushi_orders', JSON.stringify([order]));
+    } else {
+        orders.push(order);
+        localStorage.setItem('ksushi_orders', JSON.stringify(orders));
+    }
+    orderSaveSuccess = true;
+}
         
         // Обновляем localStorage текущего пользователя
         localStorage.setItem('userData', JSON.stringify(freshUser));
